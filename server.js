@@ -18,6 +18,8 @@ io.on('connection', function (socket) {
         rotation: 0,
         x: Math.floor(Math.random() * 700) + 50,
         y: Math.floor(Math.random() * 500) + 50,
+        flipX: true,
+        anim: '',
         playerId: socket.id,
         // team: (Math.floor(Math.random() * 2) == 0) ? 'red' : 'blue'
     };
@@ -39,6 +41,8 @@ io.on('connection', function (socket) {
     socket.on('playerMovement', function (movementData) {
         players[socket.id].x = movementData.x;
         players[socket.id].y = movementData.y;
+        players[socket.id].flipX = movementData.flipX;
+        players[socket.id].currentAnim = movementData.currentAnim;
         // emit a message to all players about the player that moved
         socket.broadcast.emit('playerMoved', players[socket.id]);
     });

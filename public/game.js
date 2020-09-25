@@ -96,7 +96,7 @@ const addPlayer = (self) => {
 const addOtherPlayers = (self, playerInfo) => {
     createPlayerAnims(self);
 
-    const otherPlayer = self.physics.add.sprite(GAME_WIDTH / 2, PLAYER_START_HEIGHT, 'star').setOrigin(0.5, 0.5);
+    const otherPlayer = self.physics.add.sprite(GAME_WIDTH / 2, PLAYER_START_HEIGHT, 'dude').setOrigin(0.5, 0.5);
     otherPlayer.playerId = playerInfo.playerId;
     console.log(otherPlayer)
     self.otherPlayers.add(otherPlayer);
@@ -168,7 +168,8 @@ function create() {
         key: 'idle',
         // frames: [{ key: 'dude', frame: 4 }],
         frames: this.anims.generateFrameNumbers('dude-idle', { start: 0, end: 3 }),
-        frameRate: 5
+        frameRate: 5,
+        repeat: -1
     })
 
     // SOCKET SETUP
@@ -211,6 +212,10 @@ function create() {
         self.otherPlayers.getChildren().forEach(function (otherPlayer) {
             if (playerInfo.playerId === otherPlayer.playerId) {
                 otherPlayer.setPosition(playerInfo.x, playerInfo.y);
+                otherPlayer.flipX = playerInfo.flipX;
+                if (playerInfo.currentAnim) {
+                    otherPlayer.anims.play(playerInfo.currentAnim.key);
+                }
             }
         });
     });
@@ -232,8 +237,6 @@ function create() {
         }, 500);
     });
 
-    console.log(player.y)
-    console.log(GAME_HEIGHT - 128 - 32)
 
     // UI
     scoreText = this.add.text(350, 200, `Level: ${heightLevel}`, { fontSize: '16px', fill: '#000' }).setScrollFactor(0);
@@ -265,18 +268,32 @@ function update() {
     // emit player movement
     var x = player.x;
     var y = player.y;
-    if (player.oldPosition && (x !== player.oldPosition.x || y !== player.oldPosition.y)) {
-        console.log('update position!')
-        this.socket.emit('playerMovement', { x: player.x, y: player.y });
+    var flipX = player.flipX;
+    if (player.oldPosition && (x !== player.oldPosition.x || y !== player.oldPosition.y || flipX !== player.oldPosition.flipX)) {
+        this.socket.emit('playerMovement', {
+            x: player.x,
+            y: player.y,
+            flipX: player.flipX,
+            currentAnim: player.anims.currentAnim != player.oldPosition.currentAnim ? player.anims.currentAnim : undefined
+        });
+    } else {
+        this.socket.emit('playerMovement', {
+            x: player.x,
+            y: player.y,
+            flipX: player.flipX,
+            currentAnim: player.anims.currentAnim,
+        });
     }
 
     // save old position data
     player.oldPosition = {
         x: player.x,
         y: player.y,
+        flipX: player.flipX,
+        currentAnim: player.anims.currentAnim,
     };
 
-    // console.log(player.oldPosition)
+    // console.log(player.anims.currentAnim)
 
     player.on('animationcomplete-attack', () => inAction = false);
 
