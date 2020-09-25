@@ -1,0 +1,27 @@
+{
+  "name": "StairsGame-Phaser",
+  "version": "1.0.0",
+  "description": "Stairs game built w/ Phaser 3",
+  "main": "game.js",
+  "directories": {
+    "lib": "lib"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/keldenl/StairsGame-Phaser.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/keldenl/StairsGame-Phaser/issues"
+  },
+  "homepage": "https://github.com/keldenl/StairsGame-Phaser#readme",
+  "dependencies": {
+    "express": "^4.17.1"
+  }
+}

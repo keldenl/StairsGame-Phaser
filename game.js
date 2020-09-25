@@ -1,5 +1,4 @@
 // 1366x768
-
 let GAME_WIDTH = 1366; // this.window.innerWidth;
 let GAME_HEIGHT = 768; // this.window.innerHeight;
 GAME_HEIGHT = GAME_HEIGHT * 2;
