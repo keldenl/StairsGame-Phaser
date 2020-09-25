@@ -56,6 +56,52 @@ let score = 0;
 let heightLevel = 0;
 const PLAYER_START_HEIGHT = GAME_HEIGHT - 128 - UNIT_BLOCK;
 
+const createPlayerAnims = self => {
+    self.anims.create({
+        key: 'walk',
+        frames: self.anims.generateFrameNumbers('dude-walk', { start: 0, end: 5 }),
+        frameRate: 10,
+        repeat: -1
+    })
+
+    self.anims.create({
+        key: 'jump',
+        frames: self.anims.generateFrameNumbers('dude-jump', { start: 0, end: 7 }),
+        frameRate: 5
+    })
+
+    self.anims.create({
+        key: 'run',
+        frames: self.anims.generateFrameNumbers('dude-run', { start: 0, end: 5 }),
+        frameRate: 10,
+        repeat: -1
+    })
+
+    self.anims.create({
+        key: 'attack',
+        frames: self.anims.generateFrameNumbers('dude-attack', { start: 0, end: 5 }),
+        frameRate: 10
+    })
+}
+
+const addPlayer = (self) => {
+    createPlayerAnims(self);
+
+    // Player
+    player = self.physics.add.sprite(GAME_WIDTH / 2, PLAYER_START_HEIGHT, 'dude').setOrigin(0.5, 0.5);
+    player.setBounce(0.15);
+    player.setCollideWorldBounds(true);
+}
+
+const addOtherPlayers = (self, playerInfo) => {
+    createPlayerAnims(self);
+
+    const otherPlayer = self.physics.add.sprite(GAME_WIDTH / 2, PLAYER_START_HEIGHT, 'star').setOrigin(0.5, 0.5);
+    otherPlayer.playerId = playerInfo.playerId;
+    console.log(otherPlayer)
+    self.otherPlayers.add(otherPlayer);
+}
+
 function create() {
     // Set up Backdrop
     this.add.image(0, 0, 'sky').setOrigin(0, 0).setScale(GAME_WIDTH / 800, GAME_HEIGHT / 600);
@@ -115,10 +161,8 @@ function create() {
     stars.children.iterate(child => child.setBounceY(Phaser.Math.FloatBetween(0.2, 0.4)));
     this.physics.add.collider(stars, platforms);
 
-    // Player
-    player = this.physics.add.sprite(GAME_WIDTH / 2, PLAYER_START_HEIGHT, 'dude').setOrigin(0.5, 0.5);
-    player.setBounce(0.15);
-    player.setCollideWorldBounds(true);
+    cursors = this.input.keyboard.createCursorKeys();
+    keyC = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.C);
 
     this.anims.create({
         key: 'idle',
@@ -127,34 +171,52 @@ function create() {
         frameRate: 5
     })
 
-    this.anims.create({
-        key: 'walk',
-        frames: this.anims.generateFrameNumbers('dude-walk', { start: 0, end: 5 }),
-        frameRate: 10,
-        repeat: -1
-    })
+    // SOCKET SETUP
+    var self = this;
+    this.socket = io();
+    this.otherPlayers = this.physics.add.group();
+    this.physics.add.collider(this.otherPlayers, platforms)
 
-    this.anims.create({
-        key: 'jump',
-        frames: this.anims.generateFrameNumbers('dude-jump', { start: 0, end: 7 }),
-        frameRate: 5
-    })
+    this.socket.on('currentPlayers', function (players) {
+        console.log(players)
+        Object.keys(players).forEach(function (id) {
+            console.log(id)
+            if (players[id].playerId === self.socket.id) {
+                // addPlayer(self, players[id]);
+                console.log('add me')
+            } else {
+                console.log('add other')
+                // const otherPlayer = this.physics.add.sprite(GAME_WIDTH / 2, PLAYER_START_HEIGHT, 'dude').setOrigin(0.5, 0.5);
+                // otherPlayer.playerId = playerInfo.playerId;
+                // this.otherPlayers.add(otherPlayer);
+                addOtherPlayers(self, players[id]);
+            }
+        });
+    });
 
-    this.anims.create({
-        key: 'run',
-        frames: this.anims.generateFrameNumbers('dude-run', { start: 0, end: 5 }),
-        frameRate: 10,
-        repeat: -1
-    })
+    this.socket.on('newPlayer', function (playerInfo) {
+        console.log('add new player')
+        addOtherPlayers(self, playerInfo);
+    });
 
-    this.anims.create({
-        key: 'attack',
-        frames: this.anims.generateFrameNumbers('dude-attack', { start: 0, end: 5 }),
-        frameRate: 10
-    })
+    this.socket.on('disconnect', function (playerId) {
+        self.otherPlayers.getChildren().forEach(function (otherPlayer) {
+            if (playerId === otherPlayer.playerId) {
+                otherPlayer.destroy();
+            }
+        });
+    });
 
-    cursors = this.input.keyboard.createCursorKeys();
-    keyC = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.C);
+    this.socket.on('playerMoved', function (playerInfo) {
+        self.otherPlayers.getChildren().forEach(function (otherPlayer) {
+            if (playerInfo.playerId === otherPlayer.playerId) {
+                otherPlayer.setPosition(playerInfo.x, playerInfo.y);
+            }
+        });
+    });
+
+    // Add player
+    addPlayer(self);
 
     this.physics.add.collider(player, platforms);
     this.physics.add.overlap(player, stars, (player, star) => {
@@ -199,6 +261,22 @@ function update() {
     RUN_MULTIPLIER = 1.5;
     JUMP_POWER = DOUBLE_JUMP_ENABLED ? 375 : 450;
     JUMP_SPEED_LOSS = 50;
+
+    // emit player movement
+    var x = player.x;
+    var y = player.y;
+    if (player.oldPosition && (x !== player.oldPosition.x || y !== player.oldPosition.y)) {
+        console.log('update position!')
+        this.socket.emit('playerMovement', { x: player.x, y: player.y });
+    }
+
+    // save old position data
+    player.oldPosition = {
+        x: player.x,
+        y: player.y,
+    };
+
+    // console.log(player.oldPosition)
 
     player.on('animationcomplete-attack', () => inAction = false);
 
