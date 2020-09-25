@@ -58,6 +58,14 @@ const PLAYER_START_HEIGHT = GAME_HEIGHT - 128 - UNIT_BLOCK;
 
 const createPlayerAnims = self => {
     self.anims.create({
+        key: 'idle',
+        // frames: [{ key: 'dude', frame: 4 }],
+        frames: self.anims.generateFrameNumbers('dude-idle', { start: 0, end: 3 }),
+        frameRate: 5,
+        repeat: -1
+    })
+
+    self.anims.create({
         key: 'walk',
         frames: self.anims.generateFrameNumbers('dude-walk', { start: 0, end: 5 }),
         frameRate: 10,
@@ -85,24 +93,33 @@ const createPlayerAnims = self => {
 }
 
 const addPlayer = (self) => {
-    createPlayerAnims(self);
-
-    // Player
     player = self.physics.add.sprite(GAME_WIDTH / 2, PLAYER_START_HEIGHT, 'dude').setOrigin(0.5, 0.5);
     player.setBounce(0.15);
     player.setCollideWorldBounds(true);
 }
 
-const addOtherPlayers = (self, playerInfo) => {
-    createPlayerAnims(self);
+const setUpPlayer = (player, playerInfo) => {
+    const { x, y, tint } = playerInfo;
+    player.x = x;
+    player.y = y;
+    player.tint = tint;
+}
 
-    const otherPlayer = self.physics.add.sprite(GAME_WIDTH / 2, PLAYER_START_HEIGHT, 'dude').setOrigin(0.5, 0.5);
-    otherPlayer.playerId = playerInfo.playerId;
-    console.log(otherPlayer)
+const addOtherPlayers = (self, playerInfo) => {
+    const { x, y, playerId, anim, tint } = playerInfo;
+
+    const otherPlayer = self.physics.add.sprite(x, y, 'dude').setOrigin(0.5, 0.5);
+    otherPlayer.anims.play(anim);
+    otherPlayer.playerId = playerId;
+    otherPlayer.tint = tint;
     self.otherPlayers.add(otherPlayer);
 }
 
 function create() {
+    // SOCKET SETUP
+    var self = this;
+    this.socket = io();
+
     // Set up Backdrop
     this.add.image(0, 0, 'sky').setOrigin(0, 0).setScale(GAME_WIDTH / 800, GAME_HEIGHT / 600);
 
@@ -164,64 +181,9 @@ function create() {
     cursors = this.input.keyboard.createCursorKeys();
     keyC = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.C);
 
-    this.anims.create({
-        key: 'idle',
-        // frames: [{ key: 'dude', frame: 4 }],
-        frames: this.anims.generateFrameNumbers('dude-idle', { start: 0, end: 3 }),
-        frameRate: 5,
-        repeat: -1
-    })
-
-    // SOCKET SETUP
-    var self = this;
-    this.socket = io();
-    this.otherPlayers = this.physics.add.group();
-    this.physics.add.collider(this.otherPlayers, platforms)
-
-    this.socket.on('currentPlayers', function (players) {
-        console.log(players)
-        Object.keys(players).forEach(function (id) {
-            console.log(id)
-            if (players[id].playerId === self.socket.id) {
-                // addPlayer(self, players[id]);
-                console.log('add me')
-            } else {
-                console.log('add other')
-                // const otherPlayer = this.physics.add.sprite(GAME_WIDTH / 2, PLAYER_START_HEIGHT, 'dude').setOrigin(0.5, 0.5);
-                // otherPlayer.playerId = playerInfo.playerId;
-                // this.otherPlayers.add(otherPlayer);
-                addOtherPlayers(self, players[id]);
-            }
-        });
-    });
-
-    this.socket.on('newPlayer', function (playerInfo) {
-        console.log('add new player')
-        addOtherPlayers(self, playerInfo);
-    });
-
-    this.socket.on('disconnect', function (playerId) {
-        self.otherPlayers.getChildren().forEach(function (otherPlayer) {
-            if (playerId === otherPlayer.playerId) {
-                otherPlayer.destroy();
-            }
-        });
-    });
-
-    this.socket.on('playerMoved', function (playerInfo) {
-        self.otherPlayers.getChildren().forEach(function (otherPlayer) {
-            if (playerInfo.playerId === otherPlayer.playerId) {
-                otherPlayer.setPosition(playerInfo.x, playerInfo.y);
-                otherPlayer.flipX = playerInfo.flipX;
-                if (playerInfo.currentAnim) {
-                    otherPlayer.anims.play(playerInfo.currentAnim.key);
-                }
-            }
-        });
-    });
-
-    // Add player
+    // Add animation and own player
     addPlayer(self);
+    createPlayerAnims(self);
 
     this.physics.add.collider(player, platforms);
     this.physics.add.overlap(player, stars, (player, star) => {
@@ -246,9 +208,77 @@ function create() {
     this.cameras.main.setBackgroundColor('#fff');
     this.cameras.main.setZoom(2);
     this.cameras.main.startFollow(player);
+
+
+    // Multiplayer init/loop
+    this.otherPlayers = this.physics.add.group();
+    this.physics.add.collider(this.otherPlayers, platforms)
+
+    this.socket.on('currentPlayers', function (players) {
+        console.log(players)
+        Object.keys(players).forEach(function (id) {
+            console.log(id)
+            if (players[id].playerId === self.socket.id) {
+                setUpPlayer(player, players[id]);
+                console.log('add me')
+            } else {
+                console.log('add other')
+                addOtherPlayers(self, players[id]);
+            }
+        });
+    });
+
+    this.socket.on('newPlayer', function (playerInfo) {
+        console.log('add new player')
+        addOtherPlayers(self, playerInfo);
+    });
+
+    this.socket.on('disconnect', function (playerId) {
+        self.otherPlayers.getChildren().forEach(function (otherPlayer) {
+            if (playerId === otherPlayer.playerId) {
+                otherPlayer.destroy();
+            }
+        });
+    });
+
+    let stopMovementTimer;
+
+    this.socket.on('playerMoved', function (playerInfo) {
+        self.otherPlayers.getChildren().forEach(function (otherPlayer) {
+            if (playerInfo.playerId === otherPlayer.playerId) {
+                self.physics.moveTo(otherPlayer, playerInfo.x, playerInfo.y, false, 100);
+
+                if (stopMovementTimer) { clearTimeout(stopMovementTimer) }
+
+                stopMovementTimer = setTimeout(() => {
+                    // Reset stance
+                    otherPlayer.body.velocity.x = 0;
+                    otherPlayer.body.velocity.y = 0;
+                    otherPlayer.anims.play('idle');
+
+                    // Self correction if needed
+                    otherPlayer.x = playerInfo.x;
+                    otherPlayer.y = playerInfo.y;
+                    console.log('reset')
+                    clearTimeout(this);
+                }, 125);
+
+
+                otherPlayer.flipX = playerInfo.flipX;
+                if (playerInfo.currentAnim) {
+                    if (playerInfo.inAction) {
+                        otherPlayer.anims.play('attack');
+                    } else {
+                        otherPlayer.anims.play(playerInfo.currentAnim.key);
+                    }
+                }
+            }
+        });
+    });
 }
 
 var CONTROLLER_ENABLED = false;
+var SOCKET_UPDATE_DELAY = 100;
 
 var WALK_SPEED;
 var RUN_MULTIPLIER;
@@ -269,30 +299,43 @@ function update() {
     var x = player.x;
     var y = player.y;
     var flipX = player.flipX;
-    if (player.oldPosition && (x !== player.oldPosition.x || y !== player.oldPosition.y || flipX !== player.oldPosition.flipX)) {
+    var time = new Date().getTime();
+    var updateTime = false;
+
+    // Initial
+    if (!player.oldPosition) {
         this.socket.emit('playerMovement', {
-            x: player.x,
-            y: player.y,
-            flipX: player.flipX,
-            currentAnim: player.anims.currentAnim != player.oldPosition.currentAnim ? player.anims.currentAnim : undefined
-        });
-    } else {
-        this.socket.emit('playerMovement', {
+            time: time,
             x: player.x,
             y: player.y,
             flipX: player.flipX,
             currentAnim: player.anims.currentAnim,
         });
+        updateTime = true;
+    }
+    else if (time - player.oldPosition.time > SOCKET_UPDATE_DELAY && (inAction || x !== player.oldPosition.x || y !== player.oldPosition.y || flipX !== player.oldPosition.flipX)) {
+        this.socket.emit('playerMovement', {
+            time: time,
+            x: player.x,
+            y: player.y,
+            flipX: player.flipX,
+            inAction: inAction,
+            currentAnim: player.anims.currentAnim != player.oldPosition.currentAnim ? player.anims.currentAnim : undefined
+        });
+        updateTime = true;
     }
 
     // save old position data
     player.oldPosition = {
+        time: updateTime ? time : player.oldPosition.time,
         x: player.x,
         y: player.y,
         flipX: player.flipX,
+        inAction: inAction,
         currentAnim: player.anims.currentAnim,
     };
 
+    // console.log(time - player.oldPosition.time)
     // console.log(player.anims.currentAnim)
 
     player.on('animationcomplete-attack', () => inAction = false);
@@ -304,7 +347,7 @@ function update() {
     // var pad = pads[0];
     if (this.input.gamepad.total) {
         if (this.input.gamepad.getPad(0).A && this.input.gamepad.getPad(0).B) {
-            setTimeout(() => { CONTROLLER_ENABLED = true; console.log('Controller connected!!') }, 250);
+            setTimeout(() => { CONTROLLER_ENABLED = true; alert('Controller connected!!') }, 250);
         }
         if (CONTROLLER_ENABLED) {
             pad = this.input.gamepad.getPad(0);
