@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html>
   <head>
+    <meta name="viewport" content="initial-scale = 1.0,maximum-scale = 1.0" />
+
     <style>
       body {
         background-color: black;
@@ -14,10 +16,47 @@
         overflow-y: hidden;
       }
 
-      canvas {
+      .gameCanvas {
+        width: 100%;
         margin: auto;
         display: block;
+      }
+
+      canvas {
         width: 100%;
+      }
+
+      #controls {
+        position: absolute;
+        width: 85%;
+        left: 0;
+        right: 0;
+        bottom: 50px;
+        margin: auto;
+      }
+
+
+      .control{
+        background-color: red;
+        width: 50px;
+        height: 50px;
+        text-align: center;
+        line-height: 50px;
+        display: inline-block;
+        margin: 10px;
+      }
+
+      .rightControls {
+        float: right;
+        width: 100px;
+      }
+
+      .control:hover {
+        cursor: pointer;
+      }
+
+      .clicked {
+        background-color: purple !important;
       }
     </style>
     <script src="//cdn.jsdelivr.net/npm/phaser@3.24.0/dist/phaser.js"></script>
@@ -26,5 +65,48 @@
     <script src="./game.js"></script>
   </head>
   <body>
+    <div id="gameCanvas"></div>
+    <div id="controls">
+      <div id="left" class="control" selectstart="return false"><</div>
+      <div id="right"  class="control"  onselectstart="return false">></div>
+      <div id="jump" class="control rightControls" onselectstart="return false">JUMP</div>
+      <div id="attack" class="control rightControls" onselectstart="return false">ATTACK</div>
+    </div>
+    <script>
+      const createKeyboardCommand = (buttonId, keyCode) => {
+        const btn = document.getElementById(buttonId)
+        btn.addEventListener('mousedown', () => {
+          const ke = new KeyboardEvent('keydown', {
+            bubbles: true,
+            cancelable: true,
+            keyCode: keyCode,
+          })
+          btn.classList.add('clicked')
+          document.body.dispatchEvent(ke)
+        })
+
+        btn.addEventListener('mouseup', () => {
+          const ke = new KeyboardEvent('keyup', {
+            bubbles: true,
+            cancelable: true,
+            keyCode: keyCode,
+          })
+          btn.classList.remove('clicked')
+          document.body.dispatchEvent(ke)
+        })
+      }
+
+      const [LEFT_KEYCODE, RIGHT_KEYCODE, SPACE_KEYCODE, C_KEYCODE] = [
+        37,
+        39,
+        32,
+        67,
+      ]
+
+      createKeyboardCommand('left', LEFT_KEYCODE)
+      createKeyboardCommand('right', RIGHT_KEYCODE)
+      createKeyboardCommand('jump', SPACE_KEYCODE)
+      createKeyboardCommand('attack', C_KEYCODE)
+    </script>
   </body>
 </html>

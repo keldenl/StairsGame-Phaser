@@ -6,6 +6,7 @@ let UNIT_BLOCK = 32;
 
 var config = {
     type: Phaser.AUTO,
+    parent: 'gameCanvas',
     width: GAME_WIDTH,
     height: GAME_HEIGHT,
     input: {
