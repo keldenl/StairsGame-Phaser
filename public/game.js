@@ -1,5 +1,5 @@
-let GAME_WIDTH = 1366; 
-let GAME_HEIGHT = 768; 
+let GAME_WIDTH = 1366;
+let GAME_HEIGHT = 768;
 GAME_HEIGHT = GAME_HEIGHT * 2;
 
 let UNIT_BLOCK = 32;
@@ -56,6 +56,8 @@ let score = 0;
 let heightLevel = 0;
 const PLAYER_START_HEIGHT = GAME_HEIGHT - 128 - UNIT_BLOCK;
 
+let cameraOnSelf = true;
+
 const createPlayerAnims = self => {
     self.anims.create({
         key: 'idle',
@@ -108,10 +110,14 @@ const setUpPlayer = (player, playerInfo) => {
 const addOtherPlayers = (self, playerInfo) => {
     const { x, y, playerId, anim, tint } = playerInfo;
 
-    const otherPlayer = self.physics.add.sprite(x, y, 'dude').setOrigin(0.5, 0.5);
+    const otherPlayer = self.physics.add.sprite(x, y, 'dude').setOrigin(0.5, 0.5).setInteractive();
     otherPlayer.anims.play(anim);
     otherPlayer.playerId = playerId;
     otherPlayer.tint = tint;
+    otherPlayer.on('pointerdown', () => {
+        self.cameras.main.startFollow(otherPlayer);
+        cameraOnSelf = false;
+    });
     self.otherPlayers.add(otherPlayer);
 }
 
@@ -138,7 +144,7 @@ function create() {
     let saveLevel = '';
     const loadLevel = '293,0.7596483420591831k497,1.4865215508098057k656,1.0056958327761887k546,0.6315670136813858k356,0.9632222361988958k551,1.2621491555546303k346,1.2808498705357336k549,1.3226474229876188k423,0.5855101461520695k296,1.1525791516020578k177,1.0436290252632787k294,1.4708382310399626k128,1.456403620857412k322,1.0829972695177925k128,1.229207047397372k288,0.5687526891992616k134,1.3869072993028089k331,1.327228537386511k542,0.7928619626444102k718,1.0917478318466807k545,1.4547928932249239k';
     let loadArray = loadLevel.split('k');
-    console.log(loadArray);
+    // console.log(loadArray);
     for (var i = 0; i < 21; i++) {
         if (loadArray.length > 0) {
             const currLoad = loadArray[i].split(',');
@@ -160,7 +166,7 @@ function create() {
 
         platforms.create(newX, startingHeight - (i * BLOCK_HEIGHT), 'platform').setScale(newScale, 1).refreshBody(); // 65 distance
 
-        console.log(`#${i + 1} - [${newX}, ${newScale}]`)
+        // console.log(`#${i + 1} - [${newX}, ${newScale}]`)
         saveLevel += `${newX},${newScale}k`
 
         lastX = newX;
@@ -259,7 +265,6 @@ function create() {
                     // Self correction if needed
                     otherPlayer.x = playerInfo.x;
                     otherPlayer.y = playerInfo.y;
-                    console.log('reset')
                     clearTimeout(this);
                 }, 125);
 
@@ -323,6 +328,12 @@ function update() {
             currentAnim: player.anims.currentAnim != player.oldPosition.currentAnim ? player.anims.currentAnim : undefined
         });
         updateTime = true;
+        // Reset to own camera
+        if (!cameraOnSelf) {
+            console.log('follow myself!')
+            this.cameras.main.startFollow(player);
+            cameraOnSelf = true;
+        }
     }
 
     // save old position data
@@ -345,6 +356,7 @@ function update() {
     let lAxis;
     let R1;
     // var pad = pads[0];
+    // Controller config
     if (this.input.gamepad.total) {
         if (this.input.gamepad.getPad(0).A && this.input.gamepad.getPad(0).B) {
             setTimeout(() => { CONTROLLER_ENABLED = true; console.log('Controller connected!!') }, 250);
