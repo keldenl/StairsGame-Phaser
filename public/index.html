@@ -75,7 +75,7 @@
     <script>
       const createKeyboardCommand = (buttonId, keyCode) => {
         const btn = document.getElementById(buttonId)
-        btn.addEventListener('mousedown', () => {
+        btn.addEventListener('pointerup', () => {
           const ke = new KeyboardEvent('keydown', {
             bubbles: true,
             cancelable: true,
@@ -85,7 +85,7 @@
           document.body.dispatchEvent(ke)
         })
 
-        btn.addEventListener('mouseup', () => {
+        btn.addEventListener('pointerdown', () => {
           const ke = new KeyboardEvent('keyup', {
             bubbles: true,
             cancelable: true,
