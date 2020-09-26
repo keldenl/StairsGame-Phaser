@@ -35,8 +35,7 @@
         margin: auto;
       }
 
-
-      .control{
+      .control {
         background-color: red;
         width: 50px;
         height: 50px;
@@ -44,6 +43,15 @@
         line-height: 50px;
         display: inline-block;
         margin: 10px;
+
+        /* remove selection */
+        -webkit-touch-callout: none; /* iOS Safari */
+        -webkit-user-select: none; /* Safari */
+        -khtml-user-select: none; /* Konqueror HTML */
+        -moz-user-select: none; /* Firefox */
+        -ms-user-select: none; /* Internet Explorer/Edge */
+        user-select: none; /* Non-prefixed version, currently
+                                  supported by Chrome and Opera */
       }
 
       .rightControls {
@@ -67,10 +75,14 @@
   <body>
     <div id="gameCanvas"></div>
     <div id="controls">
-      <div id="left" class="control" selectstart="return false"><</div>
-      <div id="right"  class="control"  onselectstart="return false">></div>
-      <div id="jump" class="control rightControls" onselectstart="return false">JUMP</div>
-      <div id="attack" class="control rightControls" onselectstart="return false">ATTACK</div>
+      <div id="left" class="control"><</div>
+      <div id="right" class="control">></div>
+      <div id="jump" class="control rightControls">
+        JUMP
+      </div>
+      <div id="attack" class="control rightControls">
+        ATTACK
+      </div>
     </div>
     <script>
       const createKeyboardCommand = (buttonId, keyCode) => {
