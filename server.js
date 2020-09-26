@@ -73,9 +73,9 @@ io.on('connection', function (socket) {
 
 let port = process.env.PORT;
 if (port == null || port == "") {
-    port = 8082;
+    port = 80;
 }
 
-server.listen(8082, function () {
+server.listen(port, function () {
     console.log(`Listening on ${server.address().port}`);
 });
