@@ -347,7 +347,7 @@ function update() {
     // var pad = pads[0];
     if (this.input.gamepad.total) {
         if (this.input.gamepad.getPad(0).A && this.input.gamepad.getPad(0).B) {
-            setTimeout(() => { CONTROLLER_ENABLED = true; alert('Controller connected!!') }, 250);
+            setTimeout(() => { CONTROLLER_ENABLED = true; console.log('Controller connected!!') }, 250);
         }
         if (CONTROLLER_ENABLED) {
             pad = this.input.gamepad.getPad(0);
