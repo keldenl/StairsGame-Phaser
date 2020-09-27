@@ -5,6 +5,7 @@ var io = require('socket.io').listen(server);
 
 var players = {};
 var colors = [];
+var map = '';
 
 const validColor = (color) => {
     for (let c of colors) {
@@ -46,6 +47,11 @@ io.on('connection', function (socket) {
 
     
     socket.emit('currentPlayers', players); // send the players object to the new player
+    if (map != '') {
+        console.log('add new map')
+        socket.emit('newMapReceived', map);
+    }
+
     socket.broadcast.emit('newPlayer', players[socket.id]); // update all other players of the new player
 
     socket.on('disconnect', function () {
@@ -69,7 +75,8 @@ io.on('connection', function (socket) {
 
     // when the map is regenerated, update the map data
     socket.on('generateNewMap', (mapData) => {
-        socket.broadcast.emit('newMapReceived', mapData);
+        map = mapData;
+        socket.broadcast.emit('newMapReceived', map);
     });
 });
 
