@@ -82,6 +82,7 @@ var DOUBLE_JUMP_ENABLED = true;
 var jumping = false;
 var doubleJumping = false;
 var inAction = false;
+var nameTags = {};
 
 // Set up animations
 const createPlayerAnims = self => {
@@ -125,6 +126,8 @@ const addPlayer = (self) => {
     player = self.physics.add.sprite(GAME_WIDTH / 2, PLAYER_START_HEIGHT, 'dude').setOrigin(0.5, 0.5);
     player.setBounce(0.15);
     player.setCollideWorldBounds(true);
+    nameTags['self'] = self.add.text(GAME_WIDTH / 2, PLAYER_START_HEIGHT - 15, `Me`,
+        { fontSize: '12px', fill: '#f44336' }).setOrigin(0.5, 1);
 }
 
 const setUpPlayer = (player, playerInfo) => {
@@ -146,6 +149,8 @@ const addOtherPlayers = (self, playerInfo) => {
         cameraOnSelf = false;
     });
     self.otherPlayers.add(otherPlayer);
+    nameTags[playerId] = self.add.text(x, y - 15, `repoted`,
+        { fontSize: '12px', fill: '#fff' }).setOrigin(0.5, 1);
 }
 
 // let ground;
@@ -264,6 +269,7 @@ var GameScene = new Phaser.Class({
             self.otherPlayers.getChildren().forEach(function (otherPlayer) {
                 if (playerId === otherPlayer.playerId) {
                     otherPlayer.destroy();
+                    nameTags[playerId].destroy();
                 }
             });
         });
@@ -274,18 +280,26 @@ var GameScene = new Phaser.Class({
             self.otherPlayers.getChildren().forEach(function (otherPlayer) {
                 if (playerInfo.playerId === otherPlayer.playerId) {
                     self.physics.moveTo(otherPlayer, playerInfo.x, playerInfo.y, false, 100);
+                    self.tweens.add({
+                        targets: [nameTags[otherPlayer.playerId]],
+                        x: playerInfo.x,
+                        y: playerInfo.y - 15,
+                        duration: 100,
+                    });
 
                     if (stopMovementTimer) { clearTimeout(stopMovementTimer) }
 
                     stopMovementTimer = setTimeout(() => {
-                        // Reset stance
-                        otherPlayer.body.velocity.x = 0;
-                        otherPlayer.body.velocity.y = 0;
-                        otherPlayer.anims.play('idle');
+                        if (otherPlayer) {
+                            // Reset stance
+                            otherPlayer.body.velocity.x = 0;
+                            otherPlayer.body.velocity.y = 0;
+                            otherPlayer.anims.play('idle');
 
-                        // Self correction if needed
-                        otherPlayer.x = playerInfo.x;
-                        otherPlayer.y = playerInfo.y;
+                            // Self correction if needed
+                            otherPlayer.x = playerInfo.x;
+                            otherPlayer.y = playerInfo.y;
+                        }
                         clearTimeout(this);
                     }, 125);
 
@@ -303,6 +317,7 @@ var GameScene = new Phaser.Class({
         });
     },
     update: function () {
+        // console.log(nameTags)
         WALK_SPEED = 250;
         RUN_MULTIPLIER = 1.5;
         JUMP_POWER = DOUBLE_JUMP_ENABLED ? 375 : 450;
@@ -354,8 +369,9 @@ var GameScene = new Phaser.Class({
             currentAnim: player.anims.currentAnim,
         };
 
-        // console.log(time - player.oldPosition.time)
-        // console.log(player.anims.currentAnim)
+        // Move nametag
+        nameTags['self'].x = player.x;
+        nameTags['self'].y = player.y - 15;
 
         player.on('animationcomplete-attack', () => inAction = false);
 
@@ -506,7 +522,6 @@ var UIScene = new Phaser.Class({
                 default: console.log('something went wrong')
             }
         })
-
 
         // UI Listeners
         ourGame.events.on('updateLevel', () => {
