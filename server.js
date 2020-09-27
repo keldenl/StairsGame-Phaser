@@ -30,7 +30,7 @@ io.on('connection', function (socket) {
     }
     colors.push(c)
 
-    // need to share this variable iwth game.js, but this is starting position
+    // need to share this variable w/ game.js, but this is starting position
     const STARTING_X = 683;
     const STARTING_Y = 1376;
 
@@ -43,19 +43,15 @@ io.on('connection', function (socket) {
         playerId: socket.id,
         tint: c,
     };
-    // console.log(players);
 
-    // send the players object to the new player
-    socket.emit('currentPlayers', players);
-    // update all other players of the new player
-    socket.broadcast.emit('newPlayer', players[socket.id]);
+    
+    socket.emit('currentPlayers', players); // send the players object to the new player
+    socket.broadcast.emit('newPlayer', players[socket.id]); // update all other players of the new player
 
     socket.on('disconnect', function () {
         console.log('user disconnected');
-        // remove this player from our players object
-        delete players[socket.id];
-        // emit a message to all players to remove this player
-        io.emit('disconnect', socket.id);
+        delete players[socket.id]; // remove this player from our players object
+        io.emit('disconnect', socket.id); // emit a message to all players to remove this player
     });
 
     // when a player moves, update the player data
@@ -66,8 +62,14 @@ io.on('connection', function (socket) {
         players[socket.id].flipX = movementData.flipX;
         players[socket.id].inAction = movementData.inAction;
         players[socket.id].currentAnim = movementData.currentAnim;
+
         // emit a message to all players about the player that moved
         socket.broadcast.emit('playerMoved', players[socket.id]);
+    });
+
+    // when the map is regenerated, update the map data
+    socket.on('generateNewMap', (mapData) => {
+        socket.broadcast.emit('newMapReceived', mapData);
     });
 });
 

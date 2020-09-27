@@ -17,6 +17,73 @@ const PLAYER_START_HEIGHT = GAME_HEIGHT - 128 - UNIT_BLOCK;
 
 let cameraOnSelf = true;
 
+// Game environment setup
+const BLOCK_HEIGHT = UNIT_BLOCK * 2;
+const BLOCK_WIDTH = UNIT_BLOCK * 4;
+
+
+
+
+const defaultLevelLoad = '293,0.7596483420591831k497,1.4865215508098057k656,1.0056958327761887k546,0.6315670136813858k356,0.9632222361988958k551,1.2621491555546303k346,1.2808498705357336k549,1.3226474229876188k423,0.5855101461520695k296,1.1525791516020578k177,1.0436290252632787k294,1.4708382310399626k128,1.456403620857412k322,1.0829972695177925k128,1.229207047397372k288,0.5687526891992616k134,1.3869072993028089k331,1.327228537386511k542,0.7928619626444102k718,1.0917478318466807k545,1.4547928932249239k';
+
+const loadNewLevel = (platforms, loadSavedLevel = '') => {
+    platforms.clear(true);
+
+    let loadArray = [];
+    let saveLevel = '';
+    var startingHeight = GAME_HEIGHT - (UNIT_BLOCK * 6);
+    var lastX = 400;
+    let newX = 400;
+    let newScale = 1;
+
+    if (loadSavedLevel.length > 0) {
+        loadArray = loadSavedLevel.split('k');
+    }
+
+    for (var i = 0; i < 21; i++) {
+        if (loadArray.length > 0) {
+            const currLoad = loadArray[i].split(',');
+            newX = currLoad[0];
+            newScale = currLoad[1];
+        } else {
+            while (Math.abs(newX - lastX) < 100) {
+                let posOrNeg = Math.random() < 0.5 ? -1 : 1;
+
+                // Offset by unit block * 2 (half of block width) just in case it's right above it
+                newX = lastX + ((Math.floor(Math.random() * (UNIT_BLOCK * 6)) + (UNIT_BLOCK * 2)) * posOrNeg);
+                newX = newX < BLOCK_WIDTH ? BLOCK_WIDTH : newX;
+                newX = newX > (GAME_WIDTH - BLOCK_WIDTH) ? (GAME_WIDTH - BLOCK_WIDTH) : newX;
+            }
+
+            newScale = (Math.random() * 1) + 0.5;
+        }
+
+
+        platforms.create(newX, startingHeight - (i * BLOCK_HEIGHT), 'platform').setScale(newScale, 1).refreshBody(); // 65 distance
+
+        // console.log(`#${i + 1} - [${newX}, ${newScale}]`)
+        saveLevel += `${newX},${newScale}k`
+
+        lastX = newX;
+    }
+    // Reload save file
+    return saveLevel;
+}
+
+// Player Variables
+var CONTROLLER_ENABLED = false;
+var SOCKET_UPDATE_DELAY = 100;
+
+var WALK_SPEED;
+var RUN_MULTIPLIER;
+var JUMP_POWER;
+var JUMP_SPEED_LOSS;
+var DOUBLE_JUMP_ENABLED = true;
+var jumping = false;
+var doubleJumping = false;
+var inAction = false;
+
+// Set up animations
 const createPlayerAnims = self => {
     self.anims.create({
         key: 'idle',
@@ -53,6 +120,7 @@ const createPlayerAnims = self => {
     })
 }
 
+// Player setup
 const addPlayer = (self) => {
     player = self.physics.add.sprite(GAME_WIDTH / 2, PLAYER_START_HEIGHT, 'dude').setOrigin(0.5, 0.5);
     player.setBounce(0.15);
@@ -80,18 +148,7 @@ const addOtherPlayers = (self, playerInfo) => {
     self.otherPlayers.add(otherPlayer);
 }
 
-var CONTROLLER_ENABLED = false;
-var SOCKET_UPDATE_DELAY = 100;
-
-var WALK_SPEED;
-var RUN_MULTIPLIER;
-var JUMP_POWER;
-var JUMP_SPEED_LOSS;
-var DOUBLE_JUMP_ENABLED = true;
-var jumping = false;
-var doubleJumping = false;
-var inAction = false;
-
+// let ground;
 var GameScene = new Phaser.Class({
     Extends: Phaser.Scene,
     initialize: function GameScene() {
@@ -111,67 +168,38 @@ var GameScene = new Phaser.Class({
         this.load.spritesheet('dude-attack', './assets/character/blue_dude/attack.png', { frameWidth: SPRITE_WIDTH, frameHeight: 32 });
     },
     create: function () {
+        var ourUI = this.scene.get('UIScene');
+
         // SOCKET SETUP
         var self = this;
         this.socket = io();
 
         // Set up Backdrop
         this.add.image(0, 0, 'sky').setOrigin(0, 0).setScale(GAME_WIDTH / 800, GAME_HEIGHT / 600);
+        const ground = this.physics.add.staticSprite(GAME_WIDTH / 2, GAME_HEIGHT - UNIT_BLOCK, 'ground').setScale(GAME_WIDTH / 400, 6).refreshBody();
+
 
         // Set up Platforms
         platforms = this.physics.add.staticGroup();
-        platforms.create(GAME_WIDTH / 2, GAME_HEIGHT - UNIT_BLOCK, 'ground').setScale(GAME_WIDTH / 400, 6).refreshBody();
-        var startingHeight = GAME_HEIGHT - (UNIT_BLOCK * 6);
 
-        const BLOCK_HEIGHT = UNIT_BLOCK * 2;
-        const BLOCK_WIDTH = UNIT_BLOCK * 4;
+        loadNewLevel(platforms, defaultLevelLoad);
 
-        var lastX = 400;
-        let newX = 400;
-        let newScale = 1;
-
-        let saveLevel = '';
-        const loadLevel = '293,0.7596483420591831k497,1.4865215508098057k656,1.0056958327761887k546,0.6315670136813858k356,0.9632222361988958k551,1.2621491555546303k346,1.2808498705357336k549,1.3226474229876188k423,0.5855101461520695k296,1.1525791516020578k177,1.0436290252632787k294,1.4708382310399626k128,1.456403620857412k322,1.0829972695177925k128,1.229207047397372k288,0.5687526891992616k134,1.3869072993028089k331,1.327228537386511k542,0.7928619626444102k718,1.0917478318466807k545,1.4547928932249239k';
-        let loadArray = loadLevel.split('k');
-        // console.log(loadArray);
-        for (var i = 0; i < 21; i++) {
-            if (loadArray.length > 0) {
-                const currLoad = loadArray[i].split(',');
-                newX = currLoad[0];
-                newScale = currLoad[1];
-            } else {
-                while (Math.abs(newX - lastX) < 100) {
-                    let posOrNeg = Math.random() < 0.5 ? -1 : 1;
-
-                    // Offset by unit block * 2 (half of block width) just in case it's right above it
-                    newX = lastX + ((Math.floor(Math.random() * (UNIT_BLOCK * 6)) + (UNIT_BLOCK * 2)) * posOrNeg);
-                    newX = newX < BLOCK_WIDTH ? BLOCK_WIDTH : newX;
-                    newX = newX > (GAME_WIDTH - BLOCK_WIDTH) ? (GAME_WIDTH - BLOCK_WIDTH) : newX;
-                }
-
-                newScale = (Math.random() * 1) + 0.5;
-            }
-
-
-            platforms.create(newX, startingHeight - (i * BLOCK_HEIGHT), 'platform').setScale(newScale, 1).refreshBody(); // 65 distance
-
-            // console.log(`#${i + 1} - [${newX}, ${newScale}]`)
-            saveLevel += `${newX},${newScale}k`
-
-            lastX = newX;
-        }
-        // Reload save file
-        console.log(saveLevel)
-
-        // Set up stars
-        stars = this.physics.add.group({
-            key: 'star',
-            repeat: 11,
-            setXY: { x: 12, y: 0, stepX: 70 }
+        // UI Listeners
+        ourUI.events.on('generateNewMap', () => {
+            const newLevelData = loadNewLevel(platforms);
+            console.log(newLevelData);
+            this.socket.emit('generateNewMap', newLevelData);
         });
 
-        stars.children.iterate(child => child.setBounceY(Phaser.Math.FloatBetween(0.2, 0.4)));
-        this.physics.add.collider(stars, platforms);
+        // Set up stars
+        // stars = this.physics.add.group({
+        //     key: 'star',
+        //     repeat: 11,
+        //     setXY: { x: 12, y: 0, stepX: 70 }
+        // });
+
+        // stars.children.iterate(child => child.setBounceY(Phaser.Math.FloatBetween(0.2, 0.4)));
+        // this.physics.add.collider(stars, platforms);
 
         cursors = this.input.keyboard.createCursorKeys();
         keyC = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.C);
@@ -180,19 +208,20 @@ var GameScene = new Phaser.Class({
         addPlayer(self);
         createPlayerAnims(self);
 
+        this.physics.add.collider(player, ground);
         this.physics.add.collider(player, platforms);
-        this.physics.add.overlap(player, stars, (player, star) => {
-            setTimeout(() => { // Account for animation delay
-                let xDiff = Math.abs(player.body.x - star.body.x);
-                let yDiff = Math.abs(player.body.y - star.body.y);
-                if (inAction && xDiff < 25 && yDiff < 45) {
-                    // star.disableBody(true, true);
-                    star.setVelocityX(40)
-                    score++;
-                    scoreText.setText(`score: ${score}`);
-                }
-            }, 500);
-        });
+        // this.physics.add.overlap(player, stars, (player, star) => {
+        //     setTimeout(() => { // Account for animation delay
+        //         let xDiff = Math.abs(player.body.x - star.body.x);
+        //         let yDiff = Math.abs(player.body.y - star.body.y);
+        //         if (inAction && xDiff < 25 && yDiff < 45) {
+        //             // star.disableBody(true, true);
+        //             star.setVelocityX(40)
+        //             score++;
+        //             scoreText.setText(`score: ${score}`);
+        //         }
+        //     }, 500);
+        // });
 
 
         // Camera
@@ -203,6 +232,7 @@ var GameScene = new Phaser.Class({
 
         // Multiplayer init/loop
         this.otherPlayers = this.physics.add.group();
+        this.physics.add.collider(this.otherPlayers, ground)
         this.physics.add.collider(this.otherPlayers, platforms)
 
         this.socket.on('currentPlayers', function (players) {
@@ -222,6 +252,12 @@ var GameScene = new Phaser.Class({
         this.socket.on('newPlayer', function (playerInfo) {
             console.log('add new player')
             addOtherPlayers(self, playerInfo);
+        });
+
+        this.socket.on('newMapReceived', (mapInfo) => {
+            console.log('new map time!')
+            console.log(mapInfo);
+            loadNewLevel(platforms, mapInfo)
         });
 
         this.socket.on('disconnect', function (playerId) {
@@ -464,7 +500,7 @@ var UIScene = new Phaser.Class({
         buttons.on('button.click', (button, index, pointer, event) => {
             switch (index) {
                 case 0: {
-                    console.log('hi');
+                    this.events.emit('generateNewMap');
                     break;
                 }
                 default: console.log('something went wrong')
