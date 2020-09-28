@@ -152,6 +152,11 @@ const addOtherPlayers = (self, playerInfo) => {
         { fontSize: '12px', fill: '#fff' }).setOrigin(0.5, 1);
 }
 
+
+let pad = Phaser.Input.Gamepad.Gamepad;
+let lAxis;
+let R1;
+
 var GameScene = new Phaser.Class({
     Extends: Phaser.Scene,
     initialize: function GameScene() {
@@ -370,7 +375,7 @@ var GameScene = new Phaser.Class({
                     cameraOnSelf = true;
                 }
             }
-
+            
             // save old position data
             player.oldPosition = {
                 time: updateTime ? time : player.oldPosition.time,
@@ -380,24 +385,26 @@ var GameScene = new Phaser.Class({
                 inAction: inAction,
                 currentAnim: player.anims.currentAnim,
             };
-
+            
             // Move nametag
-            nameTags['self'].x = player.x;
-            nameTags['self'].y = player.y - 15;
+            this.tweens.add({
+                targets: [nameTags['self']],
+                x: x,
+                y: y - 15,
+                duration: 0,
+            });
 
             player.on('animationcomplete-attack', () => inAction = false);
 
             // var pads = this.input.gamepad.gamepads;
-            let pad = Phaser.Input.Gamepad.Gamepad;
-            let lAxis;
-            let R1;
             // var pad = pads[0];
             // Controller config
-            if (this.input.gamepad.total) {
+            if (this.input.gamepad.total && !lAxis) {
                 if (this.input.gamepad.getPad(0).A && this.input.gamepad.getPad(0).B) {
                     setTimeout(() => { CONTROLLER_ENABLED = true; console.log('Controller connected!!') }, 250);
                 }
                 if (CONTROLLER_ENABLED) {
+                    console.log('update loop')
                     pad = this.input.gamepad.getPad(0);
                     lAxis = pad.axes[0];
                     R1 = pad.buttons[7];
