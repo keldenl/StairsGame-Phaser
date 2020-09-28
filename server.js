@@ -2,6 +2,8 @@ var express = require('express');
 var app = express();
 var server = require('http').Server(app);
 var io = require('socket.io').listen(server);
+io.eio.pingTimeout = 60000; // 1 minute
+io.eio.pingInterval = 5000;  // 5 seconds
 
 var players = {};
 var colors = [];
@@ -45,7 +47,7 @@ io.on('connection', function (socket) {
         tint: c,
     };
 
-    
+
     socket.emit('currentPlayers', players); // send the players object to the new player
     if (map != '') {
         console.log('add new map')
@@ -80,7 +82,7 @@ io.on('connection', function (socket) {
     });
 });
 
-const  port = process.env.PORT || 8080;
+const port = process.env.PORT || 8080;
 
 server.listen(port, function () {
     console.log(`Listening on ${server.address().port}`);
