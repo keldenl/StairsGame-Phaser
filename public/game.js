@@ -125,7 +125,7 @@ const addPlayer = (self) => {
     player = self.physics.add.sprite(GAME_WIDTH / 2, PLAYER_START_HEIGHT, 'dude').setOrigin(0.5, 0.5);
     player.setBounce(0.15);
     player.setCollideWorldBounds(true);
-    nameTags['self'] = self.add.text(GAME_WIDTH / 2, PLAYER_START_HEIGHT - 15, `Me`,
+    nameTags['self'] = self.add.text(GAME_WIDTH / 2, PLAYER_START_HEIGHT - 15, '',
         { fontSize: '12px', fill: '#f44336' }).setOrigin(0.5, 1);
 }
 
@@ -137,7 +137,7 @@ const setUpPlayer = (player, playerInfo) => {
 }
 
 const addOtherPlayers = (self, playerInfo) => {
-    const { x, y, playerId, anim, tint } = playerInfo;
+    const { x, y, playerId, anim, tint, username } = playerInfo;
 
     const otherPlayer = self.physics.add.sprite(x, y, 'dude').setOrigin(0.5, 0.5).setInteractive();
     otherPlayer.anims.play(anim);
@@ -148,11 +148,10 @@ const addOtherPlayers = (self, playerInfo) => {
         cameraOnSelf = false;
     });
     self.otherPlayers.add(otherPlayer);
-    nameTags[playerId] = self.add.text(x, y - 15, `repoted`,
+    nameTags[playerId] = self.add.text(x, y - 15, username,
         { fontSize: '12px', fill: '#fff' }).setOrigin(0.5, 1);
 }
 
-// let ground;
 var GameScene = new Phaser.Class({
     Extends: Phaser.Scene,
     initialize: function GameScene() {
@@ -199,6 +198,11 @@ var GameScene = new Phaser.Class({
             gamePaused = paused;
         });
 
+        ourUI.events.on('updateUsername', (username) => {
+            this.socket.emit('updateUsername', username);
+            nameTags['self'].text = username;
+        })
+
         // Set up stars
         // stars = this.physics.add.group({
         //     key: 'star',
@@ -244,7 +248,7 @@ var GameScene = new Phaser.Class({
         this.physics.add.collider(this.otherPlayers, platforms)
 
         this.socket.on('currentPlayers', function (players) {
-            console.log(players)
+            console.log(players);
             Object.keys(players).forEach(function (id) {
                 console.log(id)
                 if (players[id].playerId === self.socket.id) {
@@ -262,6 +266,12 @@ var GameScene = new Phaser.Class({
             addOtherPlayers(self, playerInfo);
         });
 
+        this.socket.on('playerUsernameUpdate', (playerInfo) => {
+            console.log(nameTags);
+            console.log(playerInfo)
+            nameTags[playerInfo.playerId].text = playerInfo.username;
+        })
+
         this.socket.on('newMapReceived', (mapInfo) => {
             console.log('new map time!')
             console.log(mapInfo);
@@ -278,7 +288,6 @@ var GameScene = new Phaser.Class({
         });
 
         let stopMovementTimer;
-
         this.socket.on('playerMoved', function (playerInfo) {
             self.otherPlayers.getChildren().forEach(function (otherPlayer) {
                 if (playerInfo.playerId === otherPlayer.playerId) {
@@ -335,7 +344,7 @@ var GameScene = new Phaser.Class({
 
             // Initial
             if (!player.oldPosition) {
-                this.socket.emit('playerMovement', {
+                this.socket.emit('updateMovement', {
                     time: time,
                     x: player.x,
                     y: player.y,
@@ -345,7 +354,7 @@ var GameScene = new Phaser.Class({
                 updateTime = true;
             }
             else if (time - player.oldPosition.time > SOCKET_UPDATE_DELAY && (inAction || x !== player.oldPosition.x || y !== player.oldPosition.y || flipX !== player.oldPosition.flipX)) {
-                this.socket.emit('playerMovement', {
+                this.socket.emit('updateMovement', {
                     time: time,
                     x: player.x,
                     y: player.y,
@@ -597,10 +606,9 @@ var UIScene = new Phaser.Class({
             username: 'Player1',
         })
             .on('submitUsername', (username) => {
-                console.log(username)
-                nameTags['self'].text = username;
                 usernameDialog.destroy();
                 darkOverlay.destroy();
+                this.events.emit('updateUsername', username);
                 this.events.emit('updatePauseState', false);
             })
             .popUp(500);

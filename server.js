@@ -39,6 +39,7 @@ io.on('connection', function (socket) {
 
     // create a new player and add it to our players object
     players[socket.id] = {
+        username: '',
         x: STARTING_X,
         y: STARTING_Y,
         flipX: true,
@@ -47,11 +48,11 @@ io.on('connection', function (socket) {
         tint: c,
     };
 
-
-    socket.emit('currentPlayers', players); // send the players object to the new player
+    // send the players object to the new player
+    socket.emit('currentPlayers', players);
+    
     if (map != '') {
-        console.log('add new map')
-        socket.emit('newMapReceived', map);
+        socket.emit('newMapReceived', map); // update with new map if it's not the default
     }
 
     socket.broadcast.emit('newPlayer', players[socket.id]); // update all other players of the new player
@@ -62,8 +63,13 @@ io.on('connection', function (socket) {
         io.emit('disconnect', socket.id); // emit a message to all players to remove this player
     });
 
+    socket.on('updateUsername', (username) => {
+        players[socket.id].username = username;
+        socket.broadcast.emit('playerUsernameUpdate', players[socket.id]);
+    })
+
     // when a player moves, update the player data
-    socket.on('playerMovement', function (movementData) {
+    socket.on('updateMovement', function (movementData) {
         players[socket.id].time = movementData.time;
         players[socket.id].x = movementData.x;
         players[socket.id].y = movementData.y;
