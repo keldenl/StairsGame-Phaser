@@ -2,6 +2,8 @@ let GAME_WIDTH = 1366;
 let GAME_HEIGHT = 768;
 GAME_HEIGHT = GAME_HEIGHT * 2;
 
+let gamePaused = true;
+
 let UNIT_BLOCK = 32;
 var SPRITE_WIDTH = 32;
 
@@ -11,7 +13,6 @@ let player;
 let cursors;
 let keyC;
 
-let score = 0;
 let heightLevel = 0;
 const PLAYER_START_HEIGHT = GAME_HEIGHT - 128 - UNIT_BLOCK;
 
@@ -20,8 +21,6 @@ let cameraOnSelf = true;
 // Game environment setup
 const BLOCK_HEIGHT = UNIT_BLOCK * 2;
 const BLOCK_WIDTH = UNIT_BLOCK * 4;
-
-
 
 
 const defaultLevelLoad = '293,0.7596483420591831k497,1.4865215508098057k656,1.0056958327761887k546,0.6315670136813858k356,0.9632222361988958k551,1.2621491555546303k346,1.2808498705357336k549,1.3226474229876188k423,0.5855101461520695k296,1.1525791516020578k177,1.0436290252632787k294,1.4708382310399626k128,1.456403620857412k322,1.0829972695177925k128,1.229207047397372k288,0.5687526891992616k134,1.3869072993028089k331,1.327228537386511k542,0.7928619626444102k718,1.0917478318466807k545,1.4547928932249239k';
@@ -189,11 +188,15 @@ var GameScene = new Phaser.Class({
 
         loadNewLevel(platforms, defaultLevelLoad);
 
-        // UI Listeners
+        // GameState/UI Listeners
         ourUI.events.on('generateNewMap', () => {
             const newLevelData = loadNewLevel(platforms);
             console.log(newLevelData);
             this.socket.emit('generateNewMap', newLevelData);
+        });
+
+        ourUI.events.on('updatePauseState', (paused) => {
+            gamePaused = paused;
         });
 
         // Set up stars
@@ -317,152 +320,153 @@ var GameScene = new Phaser.Class({
         });
     },
     update: function () {
-        // console.log(nameTags)
-        WALK_SPEED = 250;
-        RUN_MULTIPLIER = 1.5;
-        JUMP_POWER = DOUBLE_JUMP_ENABLED ? 375 : 450;
-        JUMP_SPEED_LOSS = 50;
+        if (!gamePaused) {
+            WALK_SPEED = 250;
+            RUN_MULTIPLIER = 1.5;
+            JUMP_POWER = DOUBLE_JUMP_ENABLED ? 375 : 450;
+            JUMP_SPEED_LOSS = 50;
 
-        // emit player movement
-        var x = player.x;
-        var y = player.y;
-        var flipX = player.flipX;
-        var time = new Date().getTime();
-        var updateTime = false;
+            // emit player movement
+            var x = player.x;
+            var y = player.y;
+            var flipX = player.flipX;
+            var time = new Date().getTime();
+            var updateTime = false;
 
-        // Initial
-        if (!player.oldPosition) {
-            this.socket.emit('playerMovement', {
-                time: time,
-                x: player.x,
-                y: player.y,
-                flipX: player.flipX,
-                currentAnim: player.anims.currentAnim,
-            });
-            updateTime = true;
-        }
-        else if (time - player.oldPosition.time > SOCKET_UPDATE_DELAY && (inAction || x !== player.oldPosition.x || y !== player.oldPosition.y || flipX !== player.oldPosition.flipX)) {
-            this.socket.emit('playerMovement', {
-                time: time,
+            // Initial
+            if (!player.oldPosition) {
+                this.socket.emit('playerMovement', {
+                    time: time,
+                    x: player.x,
+                    y: player.y,
+                    flipX: player.flipX,
+                    currentAnim: player.anims.currentAnim,
+                });
+                updateTime = true;
+            }
+            else if (time - player.oldPosition.time > SOCKET_UPDATE_DELAY && (inAction || x !== player.oldPosition.x || y !== player.oldPosition.y || flipX !== player.oldPosition.flipX)) {
+                this.socket.emit('playerMovement', {
+                    time: time,
+                    x: player.x,
+                    y: player.y,
+                    flipX: player.flipX,
+                    inAction: inAction,
+                    currentAnim: player.anims.currentAnim != player.oldPosition.currentAnim ? player.anims.currentAnim : undefined
+                });
+                updateTime = true;
+
+                // Reset to own camera
+                if (!cameraOnSelf) {
+                    this.cameras.main.startFollow(player);
+                    cameraOnSelf = true;
+                }
+            }
+
+            // save old position data
+            player.oldPosition = {
+                time: updateTime ? time : player.oldPosition.time,
                 x: player.x,
                 y: player.y,
                 flipX: player.flipX,
                 inAction: inAction,
-                currentAnim: player.anims.currentAnim != player.oldPosition.currentAnim ? player.anims.currentAnim : undefined
-            });
-            updateTime = true;
+                currentAnim: player.anims.currentAnim,
+            };
 
-            // Reset to own camera
-            if (!cameraOnSelf) {
-                this.cameras.main.startFollow(player);
-                cameraOnSelf = true;
-            }
-        }
+            // Move nametag
+            nameTags['self'].x = player.x;
+            nameTags['self'].y = player.y - 15;
 
-        // save old position data
-        player.oldPosition = {
-            time: updateTime ? time : player.oldPosition.time,
-            x: player.x,
-            y: player.y,
-            flipX: player.flipX,
-            inAction: inAction,
-            currentAnim: player.anims.currentAnim,
-        };
+            player.on('animationcomplete-attack', () => inAction = false);
 
-        // Move nametag
-        nameTags['self'].x = player.x;
-        nameTags['self'].y = player.y - 15;
-
-        player.on('animationcomplete-attack', () => inAction = false);
-
-        // var pads = this.input.gamepad.gamepads;
-        let pad = Phaser.Input.Gamepad.Gamepad;
-        let lAxis;
-        let R1;
-        // var pad = pads[0];
-        // Controller config
-        if (this.input.gamepad.total) {
-            if (this.input.gamepad.getPad(0).A && this.input.gamepad.getPad(0).B) {
-                setTimeout(() => { CONTROLLER_ENABLED = true; console.log('Controller connected!!') }, 250);
-            }
-            if (CONTROLLER_ENABLED) {
-                pad = this.input.gamepad.getPad(0);
-                lAxis = pad.axes[0];
-                R1 = pad.buttons[7];
-            } else {
-                console.log('Press A and B together to connect controller.');
-            }
-        }
-
-        if (player.body.touching.down) {
-            jumping = false;
-            doubleJumping = false;
-
-            // Update height
-            const newHeightLevel = Math.round((PLAYER_START_HEIGHT - player.y) / (UNIT_BLOCK * 2));
-            if (newHeightLevel != heightLevel) {
-                heightLevel = newHeightLevel;
-                this.events.emit('updateLevel');
-            }
-
-            if (cursors.left.isDown || (lAxis && lAxis.value < -0.5)) {
-                player.flipX = true;
-                if (cursors.shift.isDown || (R1 && R1.value > 0.1)) {
-                    player.setVelocityX(WALK_SPEED * RUN_MULTIPLIER * -1);
-                    player.anims.play('run', true);
+            // var pads = this.input.gamepad.gamepads;
+            let pad = Phaser.Input.Gamepad.Gamepad;
+            let lAxis;
+            let R1;
+            // var pad = pads[0];
+            // Controller config
+            if (this.input.gamepad.total) {
+                if (this.input.gamepad.getPad(0).A && this.input.gamepad.getPad(0).B) {
+                    setTimeout(() => { CONTROLLER_ENABLED = true; console.log('Controller connected!!') }, 250);
+                }
+                if (CONTROLLER_ENABLED) {
+                    pad = this.input.gamepad.getPad(0);
+                    lAxis = pad.axes[0];
+                    R1 = pad.buttons[7];
                 } else {
+                    console.log('Press A and B together to connect controller.');
+                }
+            }
+
+            if (player.body.touching.down) {
+                jumping = false;
+                doubleJumping = false;
+
+                // Update height
+                const newHeightLevel = Math.round((PLAYER_START_HEIGHT - player.y) / (UNIT_BLOCK * 2));
+                if (newHeightLevel != heightLevel) {
+                    heightLevel = newHeightLevel;
+                    this.events.emit('updateLevel');
+                }
+
+                if (cursors.left.isDown || (lAxis && lAxis.value < -0.5)) {
+                    player.flipX = true;
+                    if (cursors.shift.isDown || (R1 && R1.value > 0.1)) {
+                        player.setVelocityX(WALK_SPEED * RUN_MULTIPLIER * -1);
+                        player.anims.play('run', true);
+                    } else {
+                        player.setVelocityX(WALK_SPEED * -1);
+                        player.anims.play('walk', true);
+                    }
+                } else if (cursors.right.isDown || (lAxis && lAxis.value > 0.5)) {
+                    player.flipX = false;
+                    if (cursors.shift.isDown || (R1 && R1.value > 0.1)) {
+                        player.setVelocityX(WALK_SPEED * RUN_MULTIPLIER);
+                        player.anims.play('run', true);
+                    } else {
+                        player.setVelocityX(WALK_SPEED);
+                        player.anims.play('walk', true);
+                    }
+                } else {
+                    player.setVelocityX(0);
+                    if (!inAction) {
+                        player.anims.play('idle', true);
+                    }
+                }
+            } else if (!jumping && !doubleJumping) {
+                player.anims.play('idle', true);
+            }
+
+            // Actions not bounded by being on the ground
+            if ((cursors.up.isDown || cursors.space.isDown || pad.A) && (player.body.touching.down || (DOUBLE_JUMP_ENABLED && !doubleJumping))) {
+                if (cursors.left.isDown || (lAxis && lAxis.value < -0.5)) {
+                    player.flipX = true;
                     player.setVelocityX(WALK_SPEED * -1);
                     player.anims.play('walk', true);
-                }
-            } else if (cursors.right.isDown || (lAxis && lAxis.value > 0.5)) {
-                player.flipX = false;
-                if (cursors.shift.isDown || (R1 && R1.value > 0.1)) {
-                    player.setVelocityX(WALK_SPEED * RUN_MULTIPLIER);
-                    player.anims.play('run', true);
-                } else {
+                } else if (cursors.right.isDown || (lAxis && lAxis.value > 0.5)) {
+                    player.flipX = false;
                     player.setVelocityX(WALK_SPEED);
                     player.anims.play('walk', true);
                 }
-            } else {
-                player.setVelocityX(0);
-                if (!inAction) {
-                    player.anims.play('idle', true);
+
+                let currVelX = player.body.velocity.x;
+                let velMulti = currVelX > 0 ? -1 : 1;
+
+                player.setVelocityY(JUMP_POWER * -1);
+                if (currVelX != 0) { player.setVelocityX(currVelX + (JUMP_SPEED_LOSS * velMulti)); }
+
+                player.anims.play('jump', true);
+                player.flipX = currVelX > 0 || !player.flipX ? false : true;
+                if (jumping) {
+                    doubleJumping = true;
+                } else {
+                    setTimeout(() => jumping = true, 200)
                 }
             }
-        } else if (!jumping && !doubleJumping) {
-            player.anims.play('idle', true);
-        }
 
-        // Actions not bounded by being on the ground
-        if ((cursors.up.isDown || cursors.space.isDown || pad.A) && (player.body.touching.down || (DOUBLE_JUMP_ENABLED && !doubleJumping))) {
-            if (cursors.left.isDown || (lAxis && lAxis.value < -0.5)) {
-                player.flipX = true;
-                player.setVelocityX(WALK_SPEED * -1);
-                player.anims.play('walk', true);
-            } else if (cursors.right.isDown || (lAxis && lAxis.value > 0.5)) {
-                player.flipX = false;
-                player.setVelocityX(WALK_SPEED);
-                player.anims.play('walk', true);
+            if ((keyC.isDown || pad.B) && !(cursors.left.isDown || cursors.right.isDown)) {
+                player.anims.play('attack', true);
+                inAction = true;
             }
-
-            let currVelX = player.body.velocity.x;
-            let velMulti = currVelX > 0 ? -1 : 1;
-
-            player.setVelocityY(JUMP_POWER * -1);
-            if (currVelX != 0) { player.setVelocityX(currVelX + (JUMP_SPEED_LOSS * velMulti)); }
-
-            player.anims.play('jump', true);
-            player.flipX = currVelX > 0 || !player.flipX ? false : true;
-            if (jumping) {
-                doubleJumping = true;
-            } else {
-                setTimeout(() => jumping = true, 200)
-            }
-        }
-
-        if ((keyC.isDown || pad.B) && !(cursors.left.isDown || cursors.right.isDown)) {
-            player.anims.play('attack', true);
-            inAction = true;
         }
     }
 });
@@ -487,6 +491,64 @@ var createButton = (scene, text) => {
     });
 }
 
+const COLOR_PRIMARY = 0x4e342e;
+const COLOR_LIGHT = 0x7b5e57;
+const COLOR_DARK = 0x260e04;
+
+const GetValue = Phaser.Utils.Objects.GetValue;
+const createUsernameDialog = (scene, config) => {
+    var username = GetValue(config, 'username', '');
+    var title = GetValue(config, 'title', '');
+    var x = GetValue(config, 'x', 0);
+    var y = GetValue(config, 'y', 0);
+    var width = GetValue(config, 'width', undefined);
+    var height = GetValue(config, 'height', undefined);
+
+    var background = scene.rexUI.add.roundRectangle(0, 0, 10, 10, 10, COLOR_PRIMARY);
+    var titleField = scene.add.text(0, 0, title);
+
+    var userNameField = scene.rexUI.add.label({
+        orientation: 'x',
+        background: scene.rexUI.add.roundRectangle(0, 0, 10, 10, 10).setStrokeStyle(2, COLOR_LIGHT),
+        text: scene.rexUI.add.BBCodeText(0, 0, username, { fixedWidth: 150, fixedHeight: 36, valign: 'center' }),
+        space: { top: 5, bottom: 5, left: 5, right: 5 }
+    })
+        .setInteractive()
+        .on('pointerdown', function () {
+            console.log('clicked')
+            var config = {
+                onTextChanged: function (textObject, text) {
+                    username = text;
+                    textObject.text = text;
+                },
+            }
+            scene.rexUI.edit(userNameField.getElement('text'), config);
+        });
+
+    var loginButton = scene.rexUI.add.label({
+        orientation: 'x',
+        background: scene.rexUI.add.roundRectangle(0, 0, 10, 10, 10, COLOR_LIGHT),
+        text: scene.add.text(0, 0, 'Begin playing'),
+        space: { top: 8, bottom: 8, left: 8, right: 8 }
+    })
+        .setInteractive()
+        .on('pointerdown', () => loginDialog.emit('submitUsername', username));
+
+    var loginDialog = scene.rexUI.add.sizer({
+        orientation: 'y',
+        x: x,
+        y: y,
+        width: width,
+        height: height,
+    })
+        .addBackground(background)
+        .add(titleField, 0, 'center', { top: 10, bottom: 10, left: 10, right: 10 }, false)
+        .add(userNameField, 0, 'left', { bottom: 10, left: 10, right: 10 }, false)
+        .add(loginButton, 0, 'center', { bottom: 10, left: 10, right: 10 }, false)
+        .layout();
+    return loginDialog;
+};
+
 var UIScene = new Phaser.Class({
     Extends: Phaser.Scene,
     initialize: function UIScene() {
@@ -498,6 +560,9 @@ var UIScene = new Phaser.Class({
             url: 'https://raw.githubusercontent.com/rexrainbow/phaser3-rex-notes/master/dist/rexuiplugin.min.js',
             sceneKey: 'rexUI'
         });
+
+        this.load.plugin('rextexteditplugin', 'https://raw.githubusercontent.com/rexrainbow/phaser3-rex-notes/master/dist/rextexteditplugin.min.js', true)
+
     },
     create: function () {
         var ourGame = this.scene.get('GameScene');
@@ -523,6 +588,24 @@ var UIScene = new Phaser.Class({
             }
         })
 
+
+        const darkOverlay = this.add.rectangle(GAME_WIDTH / 2, 0, GAME_WIDTH, GAME_HEIGHT, '#000').setOrigin(0.5, 0.5);
+        const usernameDialog = createUsernameDialog(this, {
+            x: 400,
+            y: 300,
+            title: 'Choose a username',
+            username: 'Player1',
+        })
+            .on('submitUsername', (username) => {
+                console.log(username)
+                nameTags['self'].text = username;
+                usernameDialog.destroy();
+                darkOverlay.destroy();
+                this.events.emit('updatePauseState', false);
+            })
+            .popUp(500);
+
+
         // UI Listeners
         ourGame.events.on('updateLevel', () => {
             levelText.setText(`Level: ${heightLevel}`);
@@ -545,6 +628,9 @@ var config = {
             gravity: { y: 1250 },
             debug: false
         }
+    },
+    dom: {
+        createContainer: true
     },
     scene: [GameScene, UIScene]
 };
