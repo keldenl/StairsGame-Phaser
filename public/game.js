@@ -1,88 +1,57 @@
+// Game constants
 let GAME_WIDTH = 1366;
 let GAME_HEIGHT = 768;
 GAME_HEIGHT = GAME_HEIGHT * 2;
 
-let gamePaused = true;
 
+// Units
 let UNIT_BLOCK = 32;
 var SPRITE_WIDTH = 32;
-
-let platforms;
-let player;
-
-let cursors;
-let keyC;
-
-let heightLevel = 0;
-const PLAYER_START_HEIGHT = GAME_HEIGHT - 128 - UNIT_BLOCK;
-
-let cameraOnSelf = true;
-
-// Game environment setup
 const BLOCK_HEIGHT = UNIT_BLOCK * 2;
 const BLOCK_WIDTH = UNIT_BLOCK * 4;
 
-
 const defaultLevelLoad = '293,0.7596483420591831k497,1.4865215508098057k656,1.0056958327761887k546,0.6315670136813858k356,0.9632222361988958k551,1.2621491555546303k346,1.2808498705357336k549,1.3226474229876188k423,0.5855101461520695k296,1.1525791516020578k177,1.0436290252632787k294,1.4708382310399626k128,1.456403620857412k322,1.0829972695177925k128,1.229207047397372k288,0.5687526891992616k134,1.3869072993028089k331,1.327228537386511k542,0.7928619626444102k718,1.0917478318466807k545,1.4547928932249239k';
 
-const loadNewLevel = (platforms, loadSavedLevel = '') => {
-    platforms.clear(true);
+// More Config
+let heightLevel = 0;
+const PLAYER_START_HEIGHT = GAME_HEIGHT - 128 - UNIT_BLOCK;
 
-    let loadArray = [];
-    let saveLevel = '';
-    var startingHeight = GAME_HEIGHT - (UNIT_BLOCK * 6);
-    var lastX = 400;
-    let newX = 400;
-    let newScale = 1;
+// Game states
+let gamePaused = true;
+let cameraOnSelf = true;
 
-    if (loadSavedLevel.length > 0) {
-        loadArray = loadSavedLevel.split('k');
-    }
+// Networking
+var SOCKET_UPDATE_DELAY = 100; // How often we should listen to other player's movements in ms
+var nameTags = {};
 
-    for (var i = 0; i < 21; i++) {
-        if (loadArray.length > 0) {
-            const currLoad = loadArray[i].split(',');
-            newX = currLoad[0];
-            newScale = currLoad[1];
-        } else {
-            while (Math.abs(newX - lastX) < 100) {
-                let posOrNeg = Math.random() < 0.5 ? -1 : 1;
+// Objects
+let cursors;
+let keyC;
 
-                // Offset by unit block * 2 (half of block width) just in case it's right above it
-                newX = lastX + ((Math.floor(Math.random() * (UNIT_BLOCK * 6)) + (UNIT_BLOCK * 2)) * posOrNeg);
-                newX = newX < BLOCK_WIDTH ? BLOCK_WIDTH : newX;
-                newX = newX > (GAME_WIDTH - BLOCK_WIDTH) ? (GAME_WIDTH - BLOCK_WIDTH) : newX;
-            }
+// Game objects
+let platforms;
+let player;
 
-            newScale = (Math.random() * 1) + 0.5;
-        }
-
-
-        platforms.create(newX, startingHeight - (i * BLOCK_HEIGHT), 'platform').setScale(newScale, 1).refreshBody(); // 65 distance
-
-        // console.log(`#${i + 1} - [${newX}, ${newScale}]`)
-        saveLevel += `${newX},${newScale}k`
-
-        lastX = newX;
-    }
-    // Reload save file
-    return saveLevel;
-}
-
-// Player Variables
-var CONTROLLER_ENABLED = false;
-var SOCKET_UPDATE_DELAY = 100;
-
-var WALK_SPEED;
-var RUN_MULTIPLIER;
-var JUMP_POWER;
-var JUMP_SPEED_LOSS;
+// Player Constants
 var DOUBLE_JUMP_ENABLED = true;
+let WALK_SPEED = 250;
+let RUN_MULTIPLIER = 1.5;
+let JUMP_POWER = DOUBLE_JUMP_ENABLED ? 375 : 450;
+let JUMP_SPEED_LOSS = 50;
+
+// Player States
 var jumping = false;
 var doubleJumping = false;
 var inAction = false;
-var nameTags = {};
 
+// Xbox Controller Constants
+var CONTROLLER_ENABLED = false;
+let pad = Phaser.Input.Gamepad.Gamepad;
+let lAxis;
+let R1;
+
+
+// Functions
 // Set up animations
 const createPlayerAnims = self => {
     self.anims.create({
@@ -120,7 +89,7 @@ const createPlayerAnims = self => {
     })
 }
 
-// Player setup
+// Players setup
 const addPlayer = (self) => {
     player = self.physics.add.sprite(GAME_WIDTH / 2, PLAYER_START_HEIGHT, 'dude').setOrigin(0.5, 0.5);
     player.setBounce(0.15);
@@ -152,10 +121,47 @@ const addOtherPlayers = (self, playerInfo) => {
         { fontSize: '12px', fill: '#fff' }).setOrigin(0.5, 1);
 }
 
+// Load map
+const loadNewLevel = (platforms, loadSavedLevel = '') => {
+    platforms.clear(true);
 
-let pad = Phaser.Input.Gamepad.Gamepad;
-let lAxis;
-let R1;
+    let loadArray = [];
+    let saveLevel = '';
+    var startingHeight = GAME_HEIGHT - (UNIT_BLOCK * 6);
+    var lastX = 400;
+    let newX = 400;
+    let newScale = 1;
+
+    if (loadSavedLevel.length > 0) {
+        loadArray = loadSavedLevel.split('k');
+    }
+
+    for (var i = 0; i < 21; i++) {
+        if (loadArray.length > 0) {
+            const currLoad = loadArray[i].split(',');
+            newX = currLoad[0];
+            newScale = currLoad[1];
+        } else {
+            while (Math.abs(newX - lastX) < 100) {
+                let posOrNeg = Math.random() < 0.5 ? -1 : 1;
+
+                // Offset by unit block * 2 (half of block width) just in case it's right above it
+                newX = lastX + ((Math.floor(Math.random() * (UNIT_BLOCK * 6)) + (UNIT_BLOCK * 2)) * posOrNeg);
+                newX = newX < BLOCK_WIDTH ? BLOCK_WIDTH : newX;
+                newX = newX > (GAME_WIDTH - BLOCK_WIDTH) ? (GAME_WIDTH - BLOCK_WIDTH) : newX;
+            }
+
+            newScale = (Math.random() * 1) + 0.5;
+        }
+
+        platforms.create(newX, startingHeight - (i * BLOCK_HEIGHT), 'platform').setScale(newScale, 1).refreshBody(); // 65 distance
+        saveLevel += `${newX},${newScale}k`
+        lastX = newX;
+    }
+
+    // Reload save file
+    return saveLevel;
+}
 
 var GameScene = new Phaser.Class({
     Extends: Phaser.Scene,
@@ -252,9 +258,9 @@ var GameScene = new Phaser.Class({
         this.physics.add.collider(this.otherPlayers, ground)
         this.physics.add.collider(this.otherPlayers, platforms)
 
-        this.socket.on('currentPlayers', function (players) {
+        this.socket.on('currentPlayers', (players) => {
             console.log(players);
-            Object.keys(players).forEach(function (id) {
+            Object.keys(players).forEach((id) => {
                 console.log(id)
                 if (players[id].playerId === self.socket.id) {
                     setUpPlayer(player, players[id]);
@@ -266,25 +272,21 @@ var GameScene = new Phaser.Class({
             });
         });
 
-        this.socket.on('newPlayer', function (playerInfo) {
+        this.socket.on('newPlayer', (playerInfo) => {
             console.log('add new player')
             addOtherPlayers(self, playerInfo);
         });
 
         this.socket.on('playerUsernameUpdate', (playerInfo) => {
-            console.log(nameTags);
-            console.log(playerInfo)
             nameTags[playerInfo.playerId].text = playerInfo.username;
         })
 
         this.socket.on('newMapReceived', (mapInfo) => {
-            console.log('new map time!')
-            console.log(mapInfo);
             loadNewLevel(platforms, mapInfo)
         });
 
-        this.socket.on('disconnect', function (playerId) {
-            self.otherPlayers.getChildren().forEach(function (otherPlayer) {
+        this.socket.on('disconnect', (playerId) => {
+            self.otherPlayers.getChildren().forEach((otherPlayer) => {
                 if (playerId === otherPlayer.playerId) {
                     otherPlayer.destroy();
                     nameTags[playerId].destroy();
@@ -293,8 +295,8 @@ var GameScene = new Phaser.Class({
         });
 
         let stopMovementTimer;
-        this.socket.on('playerMoved', function (playerInfo) {
-            self.otherPlayers.getChildren().forEach(function (otherPlayer) {
+        this.socket.on('playerMoved', (playerInfo) => {
+            self.otherPlayers.getChildren().forEach((otherPlayer) => {
                 if (playerInfo.playerId === otherPlayer.playerId) {
                     self.physics.moveTo(otherPlayer, playerInfo.x, playerInfo.y, false, 100);
                     self.tweens.add({
@@ -304,14 +306,16 @@ var GameScene = new Phaser.Class({
                         duration: 100,
                     });
 
-                    if (stopMovementTimer) { clearTimeout(stopMovementTimer) }
+                    if (stopMovementTimer) { clearTimeout(stopMovementTimer); }
 
                     stopMovementTimer = setTimeout(() => {
                         if (otherPlayer) {
                             // Reset stance
                             otherPlayer.body.velocity.x = 0;
                             otherPlayer.body.velocity.y = 0;
-                            otherPlayer.anims.play('idle');
+                            if (!playerInfo.inAction) {
+                                otherPlayer.anims.play('idle');
+                            }
 
                             // Self correction if needed
                             otherPlayer.x = playerInfo.x;
@@ -320,14 +324,9 @@ var GameScene = new Phaser.Class({
                         clearTimeout(this);
                     }, 125);
 
-
                     otherPlayer.flipX = playerInfo.flipX;
                     if (playerInfo.currentAnim) {
-                        if (playerInfo.inAction) {
-                            otherPlayer.anims.play('attack');
-                        } else {
-                            otherPlayer.anims.play(playerInfo.currentAnim.key);
-                        }
+                        otherPlayer.anims.play(playerInfo.currentAnim.key);
                     }
                 }
             });
@@ -335,30 +334,28 @@ var GameScene = new Phaser.Class({
     },
     update: function () {
         if (!gamePaused) {
-            WALK_SPEED = 250;
-            RUN_MULTIPLIER = 1.5;
-            JUMP_POWER = DOUBLE_JUMP_ENABLED ? 375 : 450;
-            JUMP_SPEED_LOSS = 50;
+            let updateTime = false;
+            let time = new Date().getTime();
+            let flipX = player.flipX;
 
-            // emit player movement
-            var x = player.x;
-            var y = player.y;
-            var flipX = player.flipX;
-            var time = new Date().getTime();
-            var updateTime = false;
-
+            // Emit player movement
             // Initial
             if (!player.oldPosition) {
                 this.socket.emit('updateMovement', {
                     time: time,
                     x: player.x,
                     y: player.y,
-                    flipX: player.flipX,
+                    flipX: flipX,
                     currentAnim: player.anims.currentAnim,
                 });
                 updateTime = true;
             }
-            else if (time - player.oldPosition.time > SOCKET_UPDATE_DELAY && (inAction || x !== player.oldPosition.x || y !== player.oldPosition.y || flipX !== player.oldPosition.flipX)) {
+            else if (time - player.oldPosition.time > SOCKET_UPDATE_DELAY &&
+                (player.x !== player.oldPosition.x
+                    || player.y !== player.oldPosition.y
+                    || flipX !== player.oldPosition.flipX
+                    || player.anims.currentAnim !== player.oldPosition.currentAnim)) {
+
                 this.socket.emit('updateMovement', {
                     time: time,
                     x: player.x,
@@ -381,7 +378,7 @@ var GameScene = new Phaser.Class({
                 time: updateTime ? time : player.oldPosition.time,
                 x: player.x,
                 y: player.y,
-                flipX: player.flipX,
+                flipX: flipX,
                 inAction: inAction,
                 currentAnim: player.anims.currentAnim,
             };
@@ -389,15 +386,13 @@ var GameScene = new Phaser.Class({
             // Move nametag
             this.tweens.add({
                 targets: [nameTags['self']],
-                x: x,
-                y: y - 15,
+                x: player.x,
+                y: player.y - 15,
                 duration: 0,
             });
 
-            player.on('animationcomplete-attack', () => inAction = false);
+            player.on('animationcomplete-attack', () => inAction = false); // no longer in action after punching anim done
 
-            // var pads = this.input.gamepad.gamepads;
-            // var pad = pads[0];
             // Controller config
             if (this.input.gamepad.total && !lAxis) {
                 if (this.input.gamepad.getPad(0).A && this.input.gamepad.getPad(0).B) {
@@ -501,8 +496,6 @@ var createButton = (scene, text) => {
             left: 10,
             right: 10,
         },
-        // align: 'left',
-        // anchor: 'left',
         name: text
     });
 }
@@ -530,7 +523,7 @@ const createUsernameDialog = (scene, config) => {
         space: { top: 5, bottom: 5, left: 5, right: 5 }
     })
         .setInteractive()
-        .on('pointerdown', function () {
+        .on('pointerdown', () => {
             console.log('clicked')
             var config = {
                 onTextChanged: function (textObject, text) {

@@ -20,11 +20,11 @@ const validColor = (color) => {
 
 app.use(express.static(__dirname + '/public'));
 
-app.get('/', function (req, res) {
+app.get('/', (req, res) => {
     res.sendFile(__dirname + '/index.html');
 });
 
-io.on('connection', function (socket) {
+io.on('connection', (socket) => {
     console.log('a user connected');
     // get a valid color, then add it to the array of colors
     let c = Math.random() * 0xffffff;
@@ -50,7 +50,7 @@ io.on('connection', function (socket) {
 
     // send the players object to the new player
     socket.emit('currentPlayers', players);
-    
+
     if (map != '') {
         socket.emit('newMapReceived', map); // update with new map if it's not the default
     }
@@ -69,7 +69,7 @@ io.on('connection', function (socket) {
     })
 
     // when a player moves, update the player data
-    socket.on('updateMovement', function (movementData) {
+    socket.on('updateMovement', (movementData) => {
         players[socket.id].time = movementData.time;
         players[socket.id].x = movementData.x;
         players[socket.id].y = movementData.y;
@@ -77,7 +77,6 @@ io.on('connection', function (socket) {
         players[socket.id].inAction = movementData.inAction;
         players[socket.id].currentAnim = movementData.currentAnim;
 
-        // emit a message to all players about the player that moved
         socket.broadcast.emit('playerMoved', players[socket.id]);
     });
 
@@ -90,6 +89,6 @@ io.on('connection', function (socket) {
 
 const port = process.env.PORT || 8080;
 
-server.listen(port, function () {
+server.listen(port, () => {
     console.log(`Listening on ${server.address().port}`);
 });
