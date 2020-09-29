@@ -375,7 +375,7 @@ var GameScene = new Phaser.Class({
                     cameraOnSelf = true;
                 }
             }
-            
+
             // save old position data
             player.oldPosition = {
                 time: updateTime ? time : player.oldPosition.time,
@@ -385,7 +385,7 @@ var GameScene = new Phaser.Class({
                 inAction: inAction,
                 currentAnim: player.anims.currentAnim,
             };
-            
+
             // Move nametag
             this.tweens.add({
                 targets: [nameTags['self']],
@@ -541,6 +541,8 @@ const createUsernameDialog = (scene, config) => {
             scene.rexUI.edit(userNameField.getElement('text'), config);
         });
 
+    var errorMessageText = scene.add.text(0, 0, '', { fill: '#FF0000' });
+
     var loginButton = scene.rexUI.add.label({
         orientation: 'x',
         background: scene.rexUI.add.roundRectangle(0, 0, 10, 10, 10, COLOR_LIGHT),
@@ -548,7 +550,23 @@ const createUsernameDialog = (scene, config) => {
         space: { top: 8, bottom: 8, left: 8, right: 8 }
     })
         .setInteractive()
-        .on('pointerdown', () => loginDialog.emit('submitUsername', username));
+        .on('pointerdown', () => {
+            let validName = true;
+            for (let player in nameTags) {
+                console.log(player);
+                console.log(nameTags[player].text);
+                if (player != 'self' && nameTags[player].text == username) {
+                    validName = false;
+                    break;
+                }
+            }
+
+            if (validName) {
+                loginDialog.emit('submitUsername', username);
+            } else {
+                errorMessageText.text = 'Username taken!'
+            }
+        });
 
     var loginDialog = scene.rexUI.add.sizer({
         orientation: 'y',
@@ -560,6 +578,7 @@ const createUsernameDialog = (scene, config) => {
         .addBackground(background)
         .add(titleField, 0, 'center', { top: 10, bottom: 10, left: 10, right: 10 }, false)
         .add(userNameField, 0, 'left', { bottom: 10, left: 10, right: 10 }, false)
+        .add(errorMessageText, 0, 'left', { bottom: 10, left: 10, right: 10 }, false)
         .add(loginButton, 0, 'center', { bottom: 10, left: 10, right: 10 }, false)
         .layout();
     return loginDialog;
