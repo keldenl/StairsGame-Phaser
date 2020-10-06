@@ -85,6 +85,19 @@ io.on('connection', (socket) => {
         map = mapData;
         socket.broadcast.emit('newMapReceived', map);
     });
+
+
+    // Game State
+    socket.on('startGame', () => {
+        // Reset all players
+        for (let sId in players) {
+            players[sId].x = STARTING_X;
+            players[sId].y = STARTING_Y;
+        }
+
+        io.sockets.emit('teleportAllPlayers', { x: STARTING_X, y: STARTING_Y });
+        socket.broadcast.emit('receiveGameStart'); // update all other players of this
+    })
 });
 
 const port = process.env.PORT || 8080;

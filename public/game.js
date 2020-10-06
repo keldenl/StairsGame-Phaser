@@ -21,8 +21,9 @@ let gamePaused = true;
 let cameraOnSelf = true;
 
 // Networking
-var SOCKET_UPDATE_DELAY = 100; // How often we should listen to other player's movements in ms
-var nameTags = {};
+let SOCKET_UPDATE_DELAY = 100; // How often we should listen to other player's movements in ms
+let selfSocketId;
+let nameTags = {};
 
 // Objects
 let cursors;
@@ -99,7 +100,8 @@ const addPlayer = (self) => {
 }
 
 const setUpPlayer = (player, playerInfo) => {
-    const { x, y, tint } = playerInfo;
+    const { playerId, x, y, tint } = playerInfo;
+    selfSocketId = playerId;
     player.x = x;
     player.y = y;
     player.tint = tint;
@@ -212,7 +214,21 @@ var GameScene = new Phaser.Class({
         ourUI.events.on('updateUsername', (username) => {
             this.socket.emit('updateUsername', username);
             nameTags['self'].text = username;
-        })
+        });
+
+        ourUI.events.on('startGame', () => {
+            console.log('THIS CLIENT started the game')
+            const STARTING_X = 683;
+            const STARTING_Y = 1376;
+
+            player.x = STARTING_X;
+            player.y = STARTING_Y;
+            self.otherPlayers.getChildren().forEach((otherPlayer) => {
+                otherPlayer.x = STARTING_X;
+                otherPlayer.y = STARTING_Y;
+            });
+            this.socket.emit('startGame');
+        });
 
         // Set up stars
         // stars = this.physics.add.group({
@@ -285,6 +301,10 @@ var GameScene = new Phaser.Class({
             loadNewLevel(platforms, mapInfo)
         });
 
+        this.socket.on('receiveGameStart', () => {
+            this.events.emit('receiveGameStart');
+        })
+
         this.socket.on('disconnect', (playerId) => {
             self.otherPlayers.getChildren().forEach((otherPlayer) => {
                 if (playerId === otherPlayer.playerId) {
@@ -296,43 +316,77 @@ var GameScene = new Phaser.Class({
 
         let stopMovementTimer;
         this.socket.on('playerMoved', (playerInfo) => {
+            const { playerId, x, y, flipX, inAction, currentAnim } = playerInfo;
+            let playerToMove;
+            if (playerId == selfSocketId) {
+                playerToMove = player;
+            }
+
             self.otherPlayers.getChildren().forEach((otherPlayer) => {
-                if (playerInfo.playerId === otherPlayer.playerId) {
-                    self.physics.moveTo(otherPlayer, playerInfo.x, playerInfo.y, false, 100);
-                    self.tweens.add({
-                        targets: [nameTags[otherPlayer.playerId]],
-                        x: playerInfo.x,
-                        y: playerInfo.y - 15,
-                        duration: 100,
-                    });
-
-                    if (stopMovementTimer) { clearTimeout(stopMovementTimer); }
-
-                    stopMovementTimer = setTimeout(() => {
-                        if (otherPlayer) {
-                            // Reset stance
-                            otherPlayer.body.velocity.x = 0;
-                            otherPlayer.body.velocity.y = 0;
-                            if (!playerInfo.inAction) {
-                                otherPlayer.anims.play('idle');
-                            }
-
-                            // Self correction if needed
-                            otherPlayer.x = playerInfo.x;
-                            otherPlayer.y = playerInfo.y;
-                        }
-                        clearTimeout(this);
-                    }, 125);
-
-                    otherPlayer.flipX = playerInfo.flipX;
-                    if (playerInfo.currentAnim) {
-                        otherPlayer.anims.play(playerInfo.currentAnim.key);
-                    }
+                if (playerId === otherPlayer.playerId) {
+                    playerToMove = otherPlayer;
                 }
             });
+
+            if (!!playerToMove) {
+                self.physics.moveTo(playerToMove, x, y, false, 100);
+                self.tweens.add({
+                    targets: [nameTags[playerToMove.playerId]],
+                    x: x,
+                    y: y - 15,
+                    duration: 100,
+                });
+
+                if (stopMovementTimer) { clearTimeout(stopMovementTimer); }
+
+                stopMovementTimer = setTimeout(() => {
+                    if (playerToMove) {
+                        // Reset stance
+                        playerToMove.body.velocity.x = 0;
+                        playerToMove.body.velocity.y = 0;
+                        if (!inAction) {
+                            playerToMove.anims.play('idle');
+                        }
+
+                        // Self correction if needed
+                        playerToMove.x = x;
+                        playerToMove.y = y;
+                    }
+                    clearTimeout(this);
+                }, 125);
+
+                playerToMove.flipX = flipX;
+                if (currentAnim) {
+                    playerToMove.anims.play(currentAnim.key);
+                }
+            }
+        });
+
+        this.socket.on('teleportAllPlayers', (location) => {
+            const { x, y } = location;
+            player.x = x;
+            player.y = y;
+
+            self.otherPlayers.getChildren().forEach((otherPlayer) => {
+                otherPlayer.x = x;
+                otherPlayer.y = y;
+            })
+        });
+
+        this.socket.on('gameStart', () => {
+            console.log('GAME START SOCKET RECEIVED')
+            this.events.emit('showGameStartCountdown');
         });
     },
     update: function () {
+        // Move nametag
+        this.tweens.add({
+            targets: [nameTags['self']],
+            x: player.x,
+            y: player.y - 15,
+            duration: 0,
+        });
+
         if (!gamePaused) {
             let updateTime = false;
             let time = new Date().getTime();
@@ -382,14 +436,6 @@ var GameScene = new Phaser.Class({
                 inAction: inAction,
                 currentAnim: player.anims.currentAnim,
             };
-
-            // Move nametag
-            this.tweens.add({
-                targets: [nameTags['self']],
-                x: player.x,
-                y: player.y - 15,
-                duration: 0,
-            });
 
             player.on('animationcomplete-attack', () => inAction = false); // no longer in action after punching anim done
 
@@ -493,8 +539,10 @@ var createButton = (scene, text) => {
             fontSize: 18
         }),
         space: {
+            top: 10,
+            bottom: 10,
             left: 10,
-            right: 10,
+            right: 10
         },
         name: text
     });
@@ -546,8 +594,6 @@ const createUsernameDialog = (scene, config) => {
         .on('pointerdown', () => {
             let validName = true;
             for (let player in nameTags) {
-                console.log(player);
-                console.log(nameTags[player].text);
                 if (player != 'self' && nameTags[player].text == username) {
                     validName = false;
                     break;
@@ -577,6 +623,38 @@ const createUsernameDialog = (scene, config) => {
     return loginDialog;
 };
 
+// Simple UI dark overlay
+const createDarkOverlay = (self, alpha) => {
+    return self.add.rectangle(GAME_WIDTH / 2, 0, GAME_WIDTH, GAME_HEIGHT, '#000').setOrigin(0.5, 0.5).setAlpha(alpha)
+}
+
+// Game start UI
+const createGameStartCountdown = (self) => {
+    self.events.emit('updatePauseState', true);
+
+    const headerTextStyle = {
+        fontSize: '82px',
+        fill: '#fff',
+    }
+
+    const countdownDO = createDarkOverlay(self, 0.75);
+
+    let countdown = 3;
+    let countdownLabel = self.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 4, 'Ready?', headerTextStyle).setOrigin(0.5, 0.5);
+
+    let startCountdownInterval = setInterval(() => {
+        if (countdown > 0) {
+            countdownLabel.text = countdown;
+            countdown--;
+        } else {
+            countdownLabel.text = '';
+            self.events.emit('updatePauseState', false);
+            countdownDO.destroy();
+            clearInterval(startCountdownInterval);
+        }
+    }, 1000);
+}
+
 var UIScene = new Phaser.Class({
     Extends: Phaser.Scene,
     initialize: function UIScene() {
@@ -598,11 +676,15 @@ var UIScene = new Phaser.Class({
         // Create UI
         var levelText = this.add.text(15, 15, `Level: ${heightLevel}`, { fontSize: '32px', fill: '#000' });
         var buttons = this.rexUI.add.buttons({
-            x: 110, y: 80,
+            x: 110, y: 100,
             orientation: 'y',
+            anchor: 'top',
             buttons: [
                 createButton(this, 'Generate new map'),
+                createButton(this, 'Start game')
             ],
+            space: { item: 10 },
+            expand: false,
         }).layout();
         //.drawBounds(this.add.graphics(), 0xff0000)
 
@@ -612,12 +694,16 @@ var UIScene = new Phaser.Class({
                     this.events.emit('generateNewMap');
                     break;
                 }
+                case 1: {
+                    this.events.emit('startGame');
+                    createGameStartCountdown(this);
+                    break;
+                }
                 default: console.log('something went wrong')
             }
         })
 
-
-        const darkOverlay = this.add.rectangle(GAME_WIDTH / 2, 0, GAME_WIDTH, GAME_HEIGHT, '#000').setOrigin(0.5, 0.5);
+        const initialDO = createDarkOverlay(this, 0.75);
         const usernameDialog = createUsernameDialog(this, {
             x: 400,
             y: 300,
@@ -626,16 +712,19 @@ var UIScene = new Phaser.Class({
         })
             .on('submitUsername', (username) => {
                 usernameDialog.destroy();
-                darkOverlay.destroy();
+                initialDO.destroy();
                 this.events.emit('updateUsername', username);
                 this.events.emit('updatePauseState', false);
             })
             .popUp(500);
 
-
         // UI Listeners
         ourGame.events.on('updateLevel', () => {
             levelText.setText(`Level: ${heightLevel}`);
+        });
+
+        ourGame.events.on('receiveGameStart', () => {
+            createGameStartCountdown(this);
         });
     }
 });
