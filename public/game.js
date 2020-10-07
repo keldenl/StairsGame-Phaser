@@ -95,7 +95,7 @@ const addPlayer = (self) => {
     player = self.physics.add.sprite(GAME_WIDTH / 2, PLAYER_START_HEIGHT, 'dude').setOrigin(0.5, 0.5);
     player.setBounce(0.15);
     player.setCollideWorldBounds(true);
-    nameTags['self'] = self.add.text(GAME_WIDTH / 2, PLAYER_START_HEIGHT - 15, '',
+    nameTags['self'] = self.add.text(GAME_WIDTH / 2, PLAYER_START_HEIGHT, '',
         { fontSize: '12px', fill: '#f44336' }).setOrigin(0.5, 1);
 }
 
@@ -371,22 +371,23 @@ var GameScene = new Phaser.Class({
                 otherPlayer.x = x;
                 otherPlayer.y = y;
             })
+
+            for (let tag in nameTags) {
+                nameTags[tag].setPosition(x, y);
+            }
         });
 
         this.socket.on('gameStart', () => {
             console.log('GAME START SOCKET RECEIVED')
             this.events.emit('showGameStartCountdown');
         });
+
+
+        this.events.on('post_update', () => {
+            console.log('hi')
+        })
     },
     update: function () {
-        // Move nametag
-        this.tweens.add({
-            targets: [nameTags['self']],
-            x: player.x,
-            y: player.y - 15,
-            duration: 0,
-        });
-
         if (!gamePaused) {
             let updateTime = false;
             let time = new Date().getTime();
@@ -436,6 +437,9 @@ var GameScene = new Phaser.Class({
                 inAction: inAction,
                 currentAnim: player.anims.currentAnim,
             };
+
+            // move nametag
+            nameTags['self'].setPosition(player.body.x + player.body.halfWidth, player.body.y);
 
             player.on('animationcomplete-attack', () => inAction = false); // no longer in action after punching anim done
 
@@ -525,7 +529,7 @@ var GameScene = new Phaser.Class({
                 inAction = true;
             }
         }
-    }
+    },
 });
 
 // UI
