@@ -35,11 +35,17 @@ let platforms;
 let player;
 
 // Player Constants
-var DOUBLE_JUMP_ENABLED = false;
-let WALK_SPEED = 325;
 let RUN_MULTIPLIER = 1.5;
-let JUMP_POWER = DOUBLE_JUMP_ENABLED ? 400 : 450;
 let JUMP_SPEED_LOSS = 50;
+var DOUBLE_JUMP_ENABLED = false;
+const DEFAULT_WALK_SPEED = 325;
+const DEFAULT_JUMP_POWER = 450;
+const DEFAULT_DOUBLE_JUMP_POWER = 400;
+
+let WALK_SPEED = DEFAULT_WALK_SPEED;
+let JUMP_POWER = DOUBLE_JUMP_ENABLED ? DEFAULT_DOUBLE_JUMP_POWER : DEFAULT_JUMP_POWER;
+let PLAYER_ENERGY = 0;
+
 
 // Player States
 var jumping = false;
@@ -158,7 +164,7 @@ const loadNewLevel = (platforms, loadSavedLevel = '') => {
             newScale = (Math.random() * 1) + 0.75;
         }
 
-        platforms.create(newX, startingHeight - (i * BLOCK_HEIGHT) + (BLOCK_HEIGHT/2), 'platform').setScale(newScale, 1).refreshBody(); // 65 distance
+        platforms.create(newX, startingHeight - (i * BLOCK_HEIGHT) + (BLOCK_HEIGHT / 2), 'platform').setScale(newScale, 1).refreshBody(); // 65 distance
         saveLevel += `${newX},${newScale}k`
         lastX = newX;
     }
@@ -681,19 +687,27 @@ var UIScene = new Phaser.Class({
         var ourGame = this.scene.get('GameScene');
 
         // Create UI
-        var levelText = this.add.text(15, 15, `Level: ${heightLevel}`, { fontSize: '32px', fill: '#000' });
+        var levelText = this.add.text(GAME_WIDTH - 15, 35, `Level: ${heightLevel}`, { fontSize: '32px', fill: '#000' }).setOrigin(1, 0.5);
+        var energyText = this.add.text(GAME_WIDTH - 15, 75, `Energy: ${PLAYER_ENERGY}`, { fontSize: '24px', fill: '#000' }).setOrigin(1, 0.5);
+        var speedText = this.add.text(GAME_WIDTH - 15, 105, `Speed: ${WALK_SPEED - DEFAULT_WALK_SPEED}`, { fontSize: '24px', fill: '#000' }).setOrigin(1, 0.5);;
+        var jumpText = this.add.text(GAME_WIDTH - 15, 135, `Jump: ${JUMP_POWER - DEFAULT_JUMP_POWER}`, { fontSize: '24px', fill: '#000' }).setOrigin(1, 0.5);;
         var buttons = this.rexUI.add.buttons({
-            x: 110, y: 100,
+            x: 160, y: 140,
             orientation: 'y',
             anchor: 'top',
             buttons: [
                 createButton(this, 'Generate new map'),
-                createButton(this, 'Start game')
+                createButton(this, '+1 Energy'),
+                createButton(this, 'Start game'),
+                createButton(this, `Level Up SPEED (2 energy)`),
+                createButton(this, 'Level Up JUMP (2 energy)'),
             ],
             space: { item: 10 },
             expand: false,
         }).layout();
         //.drawBounds(this.add.graphics(), 0xff0000)
+        // console.log(buttons.buttons[0])
+        // buttons.buttons[0].name = 'SUP DUDE'
 
         buttons.on('button.click', (button, index, pointer, event) => {
             switch (index) {
@@ -702,8 +716,31 @@ var UIScene = new Phaser.Class({
                     break;
                 }
                 case 1: {
+                    PLAYER_ENERGY++;
+                    energyText.setText(`Energy: ${PLAYER_ENERGY}`);
+                    break;
+                }
+                case 2: {
                     this.events.emit('startGame');
                     createGameStartCountdown(this);
+                    break;
+                }
+                case 3: {
+                    if (PLAYER_ENERGY >= 2) {
+                        PLAYER_ENERGY -= 2;
+                        WALK_SPEED += 25;
+                        speedText.setText(`Speed: ${WALK_SPEED - DEFAULT_WALK_SPEED}`);
+                        energyText.setText(`Energy: ${PLAYER_ENERGY}`);
+                    }
+                    break;
+                }
+                case 4: {
+                    if (PLAYER_ENERGY >= 2) {
+                        PLAYER_ENERGY -= 2;
+                        JUMP_POWER += 10;
+                        jumpText.setText(`Jump: ${JUMP_POWER - DEFAULT_JUMP_POWER}`);
+                        energyText.setText(`Energy: ${PLAYER_ENERGY}`);
+                    }
                     break;
                 }
                 default: console.log('something went wrong')
