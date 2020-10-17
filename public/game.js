@@ -692,8 +692,9 @@ var UIScene = new Phaser.Class({
         var speedText = this.add.text(GAME_WIDTH - 15, 105, `Speed: ${WALK_SPEED}`, { fontSize: '24px', fill: '#000' }).setOrigin(1, 0.5);
         var jumpText = this.add.text(GAME_WIDTH - 15, 135, `Jump: ${JUMP_POWER}`, { fontSize: '24px', fill: '#000' }).setOrigin(1, 0.5);
         var doubleJumpText = this.add.text(GAME_WIDTH - 15, 165, `Double Jump: ${DOUBLE_JUMP_ENABLED ? 'ON' : 'OFF'}`, { fontSize: '24px', fill: '#000' }).setOrigin(1, 0.5);
+        var jumpLossText = this.add.text(GAME_WIDTH - 15, 195, `Jump Loss: ${JUMP_SPEED_LOSS}`, { fontSize: '24px', fill: '#000' }).setOrigin(1, 0.5);
         var buttons = this.rexUI.add.buttons({
-            x: 160, y: 160,
+            x: 160, y: 200,
             orientation: 'y',
             anchor: 'top',
             buttons: [
@@ -703,6 +704,8 @@ var UIScene = new Phaser.Class({
                 createButton(this, `Level Up SPEED (2 energy)`),
                 createButton(this, 'Level Up JUMP!! (2 energy)'),
                 createButton(this, 'Gain DOUBLEJUMP (10 energy)'),
+                createButton(this, '-10 Speed Loss on Jump'),
+                createButton(this, '+10 Speed Loss on Jump'),
             ],
             space: { item: 10 },
             expand: false,
@@ -750,6 +753,16 @@ var UIScene = new Phaser.Class({
                         DOUBLE_JUMP_ENABLED = true;
                         doubleJumpText.setText(`Double Jump: ${DOUBLE_JUMP_ENABLED ? 'ON' : 'OFF'}`);
                     }
+                    break;
+                }
+                case 6: {
+                    JUMP_SPEED_LOSS -= 10;
+                    jumpLossText.setText(`Jump Loss: ${JUMP_SPEED_LOSS}`);
+                    break;
+                }
+                case 7: {
+                    JUMP_SPEED_LOSS += 10;
+                    jumpLossText.setText(`Jump Loss: ${JUMP_SPEED_LOSS}`);
                     break;
                 }
                 default: console.log('something went wrong')
