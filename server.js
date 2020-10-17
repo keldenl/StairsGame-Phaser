@@ -35,7 +35,7 @@ io.on('connection', (socket) => {
 
     // need to share this variable w/ game.js, but this is starting position
     const STARTING_X = 683;
-    const STARTING_Y = 1376;
+    const STARTING_Y = 2912;
 
     // create a new player and add it to our players object
     players[socket.id] = {

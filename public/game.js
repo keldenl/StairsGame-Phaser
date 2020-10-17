@@ -1,16 +1,17 @@
 // Game constants
 let GAME_WIDTH = 1366;
 let GAME_HEIGHT = 768;
-GAME_HEIGHT = GAME_HEIGHT * 2;
+GAME_HEIGHT = GAME_HEIGHT * 4;
+console.log(GAME_HEIGHT)
 
 
 // Units
 let UNIT_BLOCK = 32;
-var SPRITE_WIDTH = 32;
-const BLOCK_HEIGHT = UNIT_BLOCK * 2;
+var SPRITE_WIDTH = 128;
+const BLOCK_HEIGHT = 142 / 2;
 const BLOCK_WIDTH = UNIT_BLOCK * 4;
 
-const defaultLevelLoad = '293,0.7596483420591831k497,1.4865215508098057k656,1.0056958327761887k546,0.6315670136813858k356,0.9632222361988958k551,1.2621491555546303k346,1.2808498705357336k549,1.3226474229876188k423,0.5855101461520695k296,1.1525791516020578k177,1.0436290252632787k294,1.4708382310399626k128,1.456403620857412k322,1.0829972695177925k128,1.229207047397372k288,0.5687526891992616k134,1.3869072993028089k331,1.327228537386511k542,0.7928619626444102k718,1.0917478318466807k545,1.4547928932249239k';
+const defaultLevelLoad = '279,1.429631057330303k128,1.4712247943087209k359,1.1383154817725396k559,0.9474566411783156k356,0.8746282753717414k531,0.7708042629893437k380,1.441797320465066k163,0.8489133989373676k311,0.8129905040793921k128,1.1500767277428878k359,0.8316530000093791k546,1.2034011446068729k675,1.3066462848342573k553,0.7959866923718679k791,1.02277579302855k966,1.3370390300681283k787,1.1842304289477505k1017,0.7656444689333228k796,0.7889342657681733k661,1.6066851466019763k446,1.6964965428269665k644,0.7688917285125929k431,1.1408319461296066k662,0.9169891029256751k855,0.9453627326549818k730,1.4688353414061062k951,0.9234054432272525k793,0.760073208954537k607,1.5477095046175684k383,1.5468201884374777k266,1.0777920996435173k396,1.2173962155579954k582,1.2901514519502562k354,1.569983269542072k510,0.7734382106872069k287,1.207263915926446k480,0.8520339829815458k628,1.2220489741154543k473,0.9826918095514907k351,1.0408944685116388k'
 
 // More Config
 let heightLevel = 0;
@@ -34,10 +35,10 @@ let platforms;
 let player;
 
 // Player Constants
-var DOUBLE_JUMP_ENABLED = true;
-let WALK_SPEED = 250;
+var DOUBLE_JUMP_ENABLED = false;
+let WALK_SPEED = 325;
 let RUN_MULTIPLIER = 1.5;
-let JUMP_POWER = DOUBLE_JUMP_ENABLED ? 375 : 450;
+let JUMP_POWER = DOUBLE_JUMP_ENABLED ? 400 : 450;
 let JUMP_SPEED_LOSS = 50;
 
 // Player States
@@ -65,21 +66,21 @@ const createPlayerAnims = self => {
 
     self.anims.create({
         key: 'walk',
-        frames: self.anims.generateFrameNumbers('dude-walk', { start: 0, end: 5 }),
-        frameRate: 10,
+        frames: self.anims.generateFrameNumbers('dude-walk', { start: 0, end: 3 }),
+        frameRate: 7,
         repeat: -1
     })
 
     self.anims.create({
         key: 'jump',
-        frames: self.anims.generateFrameNumbers('dude-jump', { start: 0, end: 7 }),
+        frames: self.anims.generateFrameNumbers('dude-walk', { start: 0, end: 3 }), // 7
         frameRate: 5
     })
 
     self.anims.create({
         key: 'run',
-        frames: self.anims.generateFrameNumbers('dude-run', { start: 0, end: 5 }),
-        frameRate: 10,
+        frames: self.anims.generateFrameNumbers('dude-walk', { start: 0, end: 3 }),
+        frameRate: 9,
         repeat: -1
     })
 
@@ -92,11 +93,12 @@ const createPlayerAnims = self => {
 
 // Players setup
 const addPlayer = (self) => {
-    player = self.physics.add.sprite(GAME_WIDTH / 2, PLAYER_START_HEIGHT, 'dude').setOrigin(0.5, 0.5);
+    player = self.physics.add.sprite(GAME_WIDTH / 2, PLAYER_START_HEIGHT, 'dude').setOrigin(0.5, 0.5).setScale(0.25);
     player.setBounce(0.15);
     player.setCollideWorldBounds(true);
+
     nameTags['self'] = self.add.text(GAME_WIDTH / 2, PLAYER_START_HEIGHT, '',
-        { fontSize: '12px', fill: '#f44336' }).setOrigin(0.5, 1);
+        { fontSize: '24px', fill: '#f44336' }).setScale(0.5).setOrigin(0.5, 1);
 }
 
 const setUpPlayer = (player, playerInfo) => {
@@ -110,7 +112,7 @@ const setUpPlayer = (player, playerInfo) => {
 const addOtherPlayers = (self, playerInfo) => {
     const { x, y, playerId, anim, tint, username } = playerInfo;
 
-    const otherPlayer = self.physics.add.sprite(x, y, 'dude').setOrigin(0.5, 0.5).setInteractive();
+    const otherPlayer = self.physics.add.sprite(x, y, 'dude').setOrigin(0.5, 0.5).setInteractive().setScale(0.25);
     otherPlayer.anims.play(anim);
     otherPlayer.playerId = playerId;
     otherPlayer.tint = tint;
@@ -119,8 +121,8 @@ const addOtherPlayers = (self, playerInfo) => {
         cameraOnSelf = false;
     });
     self.otherPlayers.add(otherPlayer);
-    nameTags[playerId] = self.add.text(x, y - 15, username,
-        { fontSize: '12px', fill: '#fff' }).setOrigin(0.5, 1);
+    nameTags[playerId] = self.add.text(x, y - 17, username,
+        { fontSize: '24px', fill: '#fff' }).setScale(0.5).setOrigin(0.5, 1);
 }
 
 // Load map
@@ -138,7 +140,7 @@ const loadNewLevel = (platforms, loadSavedLevel = '') => {
         loadArray = loadSavedLevel.split('k');
     }
 
-    for (var i = 0; i < 21; i++) {
+    for (var i = 0; i < 40; i++) {
         if (loadArray.length > 0) {
             const currLoad = loadArray[i].split(',');
             newX = currLoad[0];
@@ -148,15 +150,15 @@ const loadNewLevel = (platforms, loadSavedLevel = '') => {
                 let posOrNeg = Math.random() < 0.5 ? -1 : 1;
 
                 // Offset by unit block * 2 (half of block width) just in case it's right above it
-                newX = lastX + ((Math.floor(Math.random() * (UNIT_BLOCK * 6)) + (UNIT_BLOCK * 2)) * posOrNeg);
+                newX = lastX + ((Math.floor(Math.random() * (SPRITE_WIDTH / 4 * 4)) + (SPRITE_WIDTH / 4 * 3.5)) * posOrNeg);
                 newX = newX < BLOCK_WIDTH ? BLOCK_WIDTH : newX;
                 newX = newX > (GAME_WIDTH - BLOCK_WIDTH) ? (GAME_WIDTH - BLOCK_WIDTH) : newX;
             }
 
-            newScale = (Math.random() * 1) + 0.5;
+            newScale = (Math.random() * 1) + 0.75;
         }
 
-        platforms.create(newX, startingHeight - (i * BLOCK_HEIGHT), 'platform').setScale(newScale, 1).refreshBody(); // 65 distance
+        platforms.create(newX, startingHeight - (i * BLOCK_HEIGHT) + (BLOCK_HEIGHT/2), 'platform').setScale(newScale, 1).refreshBody(); // 65 distance
         saveLevel += `${newX},${newScale}k`
         lastX = newX;
     }
@@ -175,11 +177,12 @@ var GameScene = new Phaser.Class({
         this.load.image('ground', './assets/platform.png');
         this.load.image('platform', './assets/short-platform.png');
         this.load.image('star', './assets/star.png');
+        this.load.image('dude', './assets/player/sprite-sm.png');
 
         // Blue Dude
-        this.load.spritesheet('dude-idle', './assets/character/blue_dude/idle.png', { frameWidth: SPRITE_WIDTH, frameHeight: 32 });
-        this.load.spritesheet('dude-walk', './assets/character/blue_dude/walk.png', { frameWidth: SPRITE_WIDTH, frameHeight: 32 });
-        this.load.spritesheet('dude-jump', './assets/character/blue_dude/jump.png', { frameWidth: SPRITE_WIDTH, frameHeight: 32 });
+        this.load.spritesheet('dude-idle', './assets/player/idle-sm.png', { frameWidth: 128, frameHeight: 142 });
+        this.load.spritesheet('dude-walk', './assets/player/walk-sm.png', { frameWidth: 128, frameHeight: 142 });
+        this.load.spritesheet('dude-jump', './assets/player/dude-jump.png', { frameWidth: 256, frameHeight: 256 });
         this.load.spritesheet('dude-run', './assets/character/blue_dude/run.png', { frameWidth: SPRITE_WIDTH, frameHeight: 32 });
         this.load.spritesheet('dude-attack', './assets/character/blue_dude/attack.png', { frameWidth: SPRITE_WIDTH, frameHeight: 32 });
     },
@@ -192,7 +195,7 @@ var GameScene = new Phaser.Class({
 
         // Set up Backdrop
         this.add.image(0, 0, 'sky').setOrigin(0, 0).setScale(GAME_WIDTH / 800, GAME_HEIGHT / 600);
-        const ground = this.physics.add.staticSprite(GAME_WIDTH / 2, GAME_HEIGHT - UNIT_BLOCK, 'ground').setScale(GAME_WIDTH / 400, 6).refreshBody();
+        const ground = this.physics.add.staticSprite(GAME_WIDTH / 2, GAME_HEIGHT, 'ground').setScale(GAME_WIDTH / 400, 6).refreshBody();
 
 
         // Set up Platforms
@@ -264,9 +267,9 @@ var GameScene = new Phaser.Class({
 
 
         // Camera
-        this.cameras.main.setViewport(0, 0, GAME_WIDTH, GAME_HEIGHT / 2);
-        this.cameras.main.setBackgroundColor('#fff');
+        this.cameras.main.setViewport(0, 0, GAME_WIDTH, GAME_HEIGHT / 4);
         this.cameras.main.setZoom(2);
+        this.cameras.main.setBackgroundColor('#fff');
         this.cameras.main.startFollow(player);
 
         // Multiplayer init/loop
@@ -463,14 +466,14 @@ var GameScene = new Phaser.Class({
                 doubleJumping = false;
 
                 // Update height
-                const newHeightLevel = Math.round((PLAYER_START_HEIGHT - player.y) / (UNIT_BLOCK * 2));
+                const newHeightLevel = Math.round((PLAYER_START_HEIGHT - player.y) / (BLOCK_HEIGHT)) + 1;
                 if (newHeightLevel != heightLevel) {
                     heightLevel = newHeightLevel;
                     this.events.emit('updateLevel');
                 }
 
                 if (cursors.left.isDown || (lAxis && lAxis.value < -0.5)) {
-                    player.flipX = true;
+                    player.flipX = false;
                     if (cursors.shift.isDown || (R1 && R1.value > 0.1)) {
                         player.setVelocityX(WALK_SPEED * RUN_MULTIPLIER * -1);
                         player.anims.play('run', true);
@@ -479,7 +482,7 @@ var GameScene = new Phaser.Class({
                         player.anims.play('walk', true);
                     }
                 } else if (cursors.right.isDown || (lAxis && lAxis.value > 0.5)) {
-                    player.flipX = false;
+                    player.flipX = true;
                     if (cursors.shift.isDown || (R1 && R1.value > 0.1)) {
                         player.setVelocityX(WALK_SPEED * RUN_MULTIPLIER);
                         player.anims.play('run', true);
@@ -500,11 +503,11 @@ var GameScene = new Phaser.Class({
             // Actions not bounded by being on the ground
             if ((cursors.up.isDown || cursors.space.isDown || pad.A) && (player.body.touching.down || (DOUBLE_JUMP_ENABLED && !doubleJumping))) {
                 if (cursors.left.isDown || (lAxis && lAxis.value < -0.5)) {
-                    player.flipX = true;
+                    player.flipX = false;
                     player.setVelocityX(WALK_SPEED * -1);
                     player.anims.play('walk', true);
                 } else if (cursors.right.isDown || (lAxis && lAxis.value > 0.5)) {
-                    player.flipX = false;
+                    player.flipX = true;
                     player.setVelocityX(WALK_SPEED);
                     player.anims.play('walk', true);
                 }
@@ -516,7 +519,7 @@ var GameScene = new Phaser.Class({
                 if (currVelX != 0) { player.setVelocityX(currVelX + (JUMP_SPEED_LOSS * velMulti)); }
 
                 player.anims.play('jump', true);
-                player.flipX = currVelX > 0 || !player.flipX ? false : true;
+                player.flipX = currVelX > 0 || player.flipX ? true : false;
                 if (jumping) {
                     doubleJumping = true;
                 } else {
@@ -644,7 +647,7 @@ const createGameStartCountdown = (self) => {
     const countdownDO = createDarkOverlay(self, 0.75);
 
     let countdown = 3;
-    let countdownLabel = self.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 4, 'Ready?', headerTextStyle).setOrigin(0.5, 0.5);
+    let countdownLabel = self.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 8, 'Ready?', headerTextStyle).setOrigin(0.5, 0.5);
 
     let startCountdownInterval = setInterval(() => {
         if (countdown > 0) {
@@ -742,6 +745,7 @@ var config = {
     input: {
         gamepad: true
     },
+    autoRound: false,
     physics: {
         default: 'arcade',
         arcade: {
