@@ -38,9 +38,9 @@ let player;
 let RUN_MULTIPLIER = 1.5;
 let JUMP_SPEED_LOSS = 0.3;
 var DOUBLE_JUMP_ENABLED = true;
-const DEFAULT_WALK_SPEED = 150;
-const DEFAULT_JUMP_POWER = 450;
-const DEFAULT_DOUBLE_JUMP_POWER = 400;
+const DEFAULT_WALK_SPEED = 250;
+const DEFAULT_JUMP_POWER = 425;
+const DEFAULT_DOUBLE_JUMP_POWER = 375;
 
 let WALK_SPEED = DEFAULT_WALK_SPEED;
 let JUMP_POWER = DOUBLE_JUMP_ENABLED ? DEFAULT_DOUBLE_JUMP_POWER : DEFAULT_JUMP_POWER;
@@ -100,7 +100,8 @@ const createPlayerAnims = self => {
 // Players setup
 const addPlayer = (self) => {
     player = self.physics.add.sprite(GAME_WIDTH / 2, PLAYER_START_HEIGHT, 'dude').setOrigin(0.5, 0.5).setScale(0.25);
-    player.setBounce(0.15);
+    player.setSize(98, 138, true);
+    // player.setBounce(0.15);
     player.setCollideWorldBounds(true);
 
     nameTags['self'] = self.add.text(GAME_WIDTH / 2, PLAYER_START_HEIGHT, '',
