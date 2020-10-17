@@ -36,9 +36,9 @@ let player;
 
 // Player Constants
 let RUN_MULTIPLIER = 1.5;
-let JUMP_SPEED_LOSS = 50;
+let JUMP_SPEED_LOSS = 0.3;
 var DOUBLE_JUMP_ENABLED = true;
-const DEFAULT_WALK_SPEED = 325;
+const DEFAULT_WALK_SPEED = 150;
 const DEFAULT_JUMP_POWER = 450;
 const DEFAULT_DOUBLE_JUMP_POWER = 400;
 
@@ -522,7 +522,7 @@ var GameScene = new Phaser.Class({
                 let velMulti = currVelX > 0 ? -1 : 1;
 
                 player.setVelocityY(JUMP_POWER * -1);
-                if (currVelX != 0) { player.setVelocityX(currVelX + (JUMP_SPEED_LOSS * velMulti)); }
+                if (currVelX != 0) { player.setVelocityX(currVelX - (currVelX * JUMP_SPEED_LOSS)); }
 
                 player.anims.play('jump', true);
                 player.flipX = currVelX > 0 || player.flipX ? true : false;
@@ -692,7 +692,7 @@ var UIScene = new Phaser.Class({
         var speedText = this.add.text(GAME_WIDTH - 15, 105, `Speed: ${WALK_SPEED}`, { fontSize: '24px', fill: '#000' }).setOrigin(1, 0.5);
         var jumpText = this.add.text(GAME_WIDTH - 15, 135, `Jump: ${JUMP_POWER}`, { fontSize: '24px', fill: '#000' }).setOrigin(1, 0.5);
         var doubleJumpText = this.add.text(GAME_WIDTH - 15, 165, `Double Jump: ${DOUBLE_JUMP_ENABLED ? 'ON' : 'OFF'}`, { fontSize: '24px', fill: '#000' }).setOrigin(1, 0.5);
-        var jumpLossText = this.add.text(GAME_WIDTH - 15, 195, `Jump Loss: ${JUMP_SPEED_LOSS}`, { fontSize: '24px', fill: '#000' }).setOrigin(1, 0.5);
+        var jumpLossText = this.add.text(GAME_WIDTH - 15, 195, `Jump Loss: ${JUMP_SPEED_LOSS * 100}%`, { fontSize: '24px', fill: '#000' }).setOrigin(1, 0.5);
         var buttons = this.rexUI.add.buttons({
             x: 160, y: 200,
             orientation: 'y',
@@ -732,19 +732,19 @@ var UIScene = new Phaser.Class({
                 }
                 case 3: {
                     // if (PLAYER_ENERGY >= 2) {
-                        PLAYER_ENERGY -= 2;
-                        WALK_SPEED += 25;
-                        speedText.setText(`Speed: ${WALK_SPEED}`);
-                        energyText.setText(`Energy: ${PLAYER_ENERGY}`);
+                    PLAYER_ENERGY -= 2;
+                    WALK_SPEED += 25;
+                    speedText.setText(`Speed: ${WALK_SPEED}`);
+                    energyText.setText(`Energy: ${PLAYER_ENERGY}`);
                     // }
                     break;
                 }
                 case 4: {
                     // if (PLAYER_ENERGY >= 2) {
-                        PLAYER_ENERGY -= 2;
-                        JUMP_POWER += 100;
-                        jumpText.setText(`Jump: ${JUMP_POWER}`);
-                        energyText.setText(`Energy: ${PLAYER_ENERGY}`);
+                    PLAYER_ENERGY -= 2;
+                    JUMP_POWER += 100;
+                    jumpText.setText(`Jump: ${JUMP_POWER}`);
+                    energyText.setText(`Energy: ${PLAYER_ENERGY}`);
                     // }
                     break;
                 }
@@ -756,13 +756,13 @@ var UIScene = new Phaser.Class({
                     break;
                 }
                 case 6: {
-                    JUMP_SPEED_LOSS -= 10;
-                    jumpLossText.setText(`Jump Loss: ${JUMP_SPEED_LOSS}`);
+                    JUMP_SPEED_LOSS -= 0.1;
+                    jumpLossText.setText(`Jump Loss: ${JUMP_SPEED_LOSS * 100}%`);
                     break;
                 }
                 case 7: {
-                    JUMP_SPEED_LOSS += 10;
-                    jumpLossText.setText(`Jump Loss: ${JUMP_SPEED_LOSS}`);
+                    JUMP_SPEED_LOSS += 0.1;
+                    jumpLossText.setText(`Jump Loss: ${JUMP_SPEED_LOSS * 100}%`);
                     break;
                 }
                 default: console.log('something went wrong')
