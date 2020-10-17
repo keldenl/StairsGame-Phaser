@@ -37,9 +37,9 @@ let player;
 // Player Constants
 let RUN_MULTIPLIER = 1.5;
 let JUMP_SPEED_LOSS = 50;
-var DOUBLE_JUMP_ENABLED = false;
+var DOUBLE_JUMP_ENABLED = true;
 const DEFAULT_WALK_SPEED = 325;
-const DEFAULT_JUMP_POWER = 1000;
+const DEFAULT_JUMP_POWER = 450;
 const DEFAULT_DOUBLE_JUMP_POWER = 400;
 
 let WALK_SPEED = DEFAULT_WALK_SPEED;
@@ -689,8 +689,8 @@ var UIScene = new Phaser.Class({
         // Create UI
         var levelText = this.add.text(GAME_WIDTH - 15, 35, `Level: ${heightLevel}`, { fontSize: '32px', fill: '#000' }).setOrigin(1, 0.5);
         var energyText = this.add.text(GAME_WIDTH - 15, 75, `Energy: ${PLAYER_ENERGY}`, { fontSize: '24px', fill: '#000' }).setOrigin(1, 0.5);
-        var speedText = this.add.text(GAME_WIDTH - 15, 105, `Speed: ${WALK_SPEED - DEFAULT_WALK_SPEED}`, { fontSize: '24px', fill: '#000' }).setOrigin(1, 0.5);
-        var jumpText = this.add.text(GAME_WIDTH - 15, 135, `Jump: ${JUMP_POWER - DEFAULT_JUMP_POWER}`, { fontSize: '24px', fill: '#000' }).setOrigin(1, 0.5);
+        var speedText = this.add.text(GAME_WIDTH - 15, 105, `Speed: ${WALK_SPEED}`, { fontSize: '24px', fill: '#000' }).setOrigin(1, 0.5);
+        var jumpText = this.add.text(GAME_WIDTH - 15, 135, `Jump: ${JUMP_POWER}`, { fontSize: '24px', fill: '#000' }).setOrigin(1, 0.5);
         var doubleJumpText = this.add.text(GAME_WIDTH - 15, 165, `Double Jump: ${DOUBLE_JUMP_ENABLED ? 'ON' : 'OFF'}`, { fontSize: '24px', fill: '#000' }).setOrigin(1, 0.5);
         var buttons = this.rexUI.add.buttons({
             x: 160, y: 160,
@@ -728,21 +728,21 @@ var UIScene = new Phaser.Class({
                     break;
                 }
                 case 3: {
-                    if (PLAYER_ENERGY >= 2) {
+                    // if (PLAYER_ENERGY >= 2) {
                         PLAYER_ENERGY -= 2;
                         WALK_SPEED += 25;
-                        speedText.setText(`Speed: ${WALK_SPEED - DEFAULT_WALK_SPEED}`);
+                        speedText.setText(`Speed: ${WALK_SPEED}`);
                         energyText.setText(`Energy: ${PLAYER_ENERGY}`);
-                    }
+                    // }
                     break;
                 }
                 case 4: {
-                    if (PLAYER_ENERGY >= 2) {
+                    // if (PLAYER_ENERGY >= 2) {
                         PLAYER_ENERGY -= 2;
                         JUMP_POWER += 100;
-                        jumpText.setText(`Jump: ${JUMP_POWER - DEFAULT_JUMP_POWER}`);
+                        jumpText.setText(`Jump: ${JUMP_POWER}`);
                         energyText.setText(`Energy: ${PLAYER_ENERGY}`);
-                    }
+                    // }
                     break;
                 }
                 case 5: {
