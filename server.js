@@ -9,6 +9,8 @@ var players = {};
 var colors = [];
 var map = '';
 
+var playersFinished = [];
+
 const validColor = (color) => {
     for (let c of colors) {
         if (Math.abs(color - c) < 750000) {
@@ -86,7 +88,6 @@ io.on('connection', (socket) => {
         socket.broadcast.emit('newMapReceived', map);
     });
 
-
     // Game State
     socket.on('startGame', () => {
         // Reset all players
@@ -97,6 +98,11 @@ io.on('connection', (socket) => {
 
         io.sockets.emit('teleportAllPlayers', { x: STARTING_X, y: STARTING_Y });
         socket.broadcast.emit('receiveGameStart'); // update all other players of this
+    })
+
+    socket.on('playerFinish', (playerId) => {
+        playersFinished.push(playerId);
+        io.emit('updateFinished', playersFinished);
     })
 });
 

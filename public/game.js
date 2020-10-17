@@ -689,18 +689,20 @@ var UIScene = new Phaser.Class({
         // Create UI
         var levelText = this.add.text(GAME_WIDTH - 15, 35, `Level: ${heightLevel}`, { fontSize: '32px', fill: '#000' }).setOrigin(1, 0.5);
         var energyText = this.add.text(GAME_WIDTH - 15, 75, `Energy: ${PLAYER_ENERGY}`, { fontSize: '24px', fill: '#000' }).setOrigin(1, 0.5);
-        var speedText = this.add.text(GAME_WIDTH - 15, 105, `Speed: ${WALK_SPEED - DEFAULT_WALK_SPEED}`, { fontSize: '24px', fill: '#000' }).setOrigin(1, 0.5);;
-        var jumpText = this.add.text(GAME_WIDTH - 15, 135, `Jump: ${JUMP_POWER - DEFAULT_JUMP_POWER}`, { fontSize: '24px', fill: '#000' }).setOrigin(1, 0.5);;
+        var speedText = this.add.text(GAME_WIDTH - 15, 105, `Speed: ${WALK_SPEED - DEFAULT_WALK_SPEED}`, { fontSize: '24px', fill: '#000' }).setOrigin(1, 0.5);
+        var jumpText = this.add.text(GAME_WIDTH - 15, 135, `Jump: ${JUMP_POWER - DEFAULT_JUMP_POWER}`, { fontSize: '24px', fill: '#000' }).setOrigin(1, 0.5);
+        var doubleJumpText = this.add.text(GAME_WIDTH - 15, 165, `Double Jump: ${DOUBLE_JUMP_ENABLED ? 'ON' : 'OFF'}`, { fontSize: '24px', fill: '#000' }).setOrigin(1, 0.5);
         var buttons = this.rexUI.add.buttons({
-            x: 160, y: 140,
+            x: 160, y: 160,
             orientation: 'y',
             anchor: 'top',
             buttons: [
                 createButton(this, 'Generate new map'),
-                createButton(this, '+1 Energy'),
+                createButton(this, '+5 Energy'),
                 createButton(this, 'Start game'),
                 createButton(this, `Level Up SPEED (2 energy)`),
-                createButton(this, 'Level Up JUMP (2 energy)'),
+                createButton(this, 'Level Up JUMP!! (2 energy)'),
+                createButton(this, 'Gain DOUBLEJUMP (10 energy)'),
             ],
             space: { item: 10 },
             expand: false,
@@ -716,7 +718,7 @@ var UIScene = new Phaser.Class({
                     break;
                 }
                 case 1: {
-                    PLAYER_ENERGY++;
+                    PLAYER_ENERGY += 5;
                     energyText.setText(`Energy: ${PLAYER_ENERGY}`);
                     break;
                 }
@@ -737,9 +739,16 @@ var UIScene = new Phaser.Class({
                 case 4: {
                     if (PLAYER_ENERGY >= 2) {
                         PLAYER_ENERGY -= 2;
-                        JUMP_POWER += 10;
+                        JUMP_POWER += 100;
                         jumpText.setText(`Jump: ${JUMP_POWER - DEFAULT_JUMP_POWER}`);
                         energyText.setText(`Energy: ${PLAYER_ENERGY}`);
+                    }
+                    break;
+                }
+                case 5: {
+                    if (PLAYER_ENERGY >= 10) {
+                        DOUBLE_JUMP_ENABLED = true;
+                        doubleJumpText.setText(`Double Jump: ${DOUBLE_JUMP_ENABLED ? 'ON' : 'OFF'}`);
                     }
                     break;
                 }
