@@ -46,7 +46,6 @@ let WALK_SPEED = DEFAULT_WALK_SPEED;
 let JUMP_POWER = DOUBLE_JUMP_ENABLED ? DEFAULT_DOUBLE_JUMP_POWER : DEFAULT_JUMP_POWER;
 let PLAYER_ENERGY = 0;
 
-
 // Player States
 var jumping = false;
 var doubleJumping = false;
@@ -109,7 +108,7 @@ const addPlayer = (self) => {
 }
 
 const setUpPlayer = (player, playerInfo) => {
-    const { playerId, x, y, tint } = playerInfo;
+    const { playerId, x, y, tint, username } = playerInfo;
     selfSocketId = playerId;
     player.x = x;
     player.y = y;
@@ -133,7 +132,7 @@ const addOtherPlayers = (self, playerInfo) => {
 }
 
 // Load map
-const loadNewLevel = (platforms, loadSavedLevel = '') => {
+const loadNewLevel = (self, socket, platforms, loadSavedLevel = '') => {
     platforms.clear(true);
 
     let loadArray = [];
@@ -147,7 +146,7 @@ const loadNewLevel = (platforms, loadSavedLevel = '') => {
         loadArray = loadSavedLevel.split('k');
     }
 
-    for (var i = 0; i < 40; i++) {
+    for (var i = 0; i < 3; i++) { // 40
         if (loadArray.length > 0) {
             const currLoad = loadArray[i].split(',');
             newX = currLoad[0];
@@ -164,10 +163,27 @@ const loadNewLevel = (platforms, loadSavedLevel = '') => {
 
             newScale = (Math.random() * 1) + 0.75;
         }
-
-        platforms.create(newX, startingHeight - (i * BLOCK_HEIGHT) + (BLOCK_HEIGHT / 2), 'platform').setScale(newScale, 1).refreshBody(); // 65 distance
         saveLevel += `${newX},${newScale}k`
         lastX = newX;
+
+        if (i !== 2) {
+            platforms.create(newX, startingHeight - (i * BLOCK_HEIGHT) + (BLOCK_HEIGHT / 2), 'platform').setScale(newScale, 1).refreshBody(); // 65 distance
+        } else {
+            const lastPlat = platforms.create(newX, startingHeight - (i * BLOCK_HEIGHT) + (BLOCK_HEIGHT / 2), 'platform').setScale(newScale, 1).refreshBody(); // 65 distance
+            lastPlat.tint = 0x000000;
+            self.physics.add.overlap(player, lastPlat, () => {
+                console.log('you win!');
+                player.body.velocity.x = 0;
+                player.body.velocity.y = 0;
+                player.anims.play('idle', true);
+                gamePaused = true;
+                socket.emit('playerFinish', selfSocketId);
+                self.events.emit('finishedPlayersUpdate', nameTags['self'].text);
+                self.events.emit('showStatUpgrades', true);
+            }, () => {
+                return !gamePaused && lastPlat.body.y - player.body.y > 32 && Math.abs(lastPlat.body.x - player.body.x) > 10;
+            }, this);
+        }
     }
 
     // Reload save file
@@ -208,11 +224,17 @@ var GameScene = new Phaser.Class({
         // Set up Platforms
         platforms = this.physics.add.staticGroup();
 
-        loadNewLevel(platforms, defaultLevelLoad);
+        // Add animation and own player
+        addPlayer(self);
+        createPlayerAnims(self);
+        loadNewLevel(self, this.socket, platforms, defaultLevelLoad);
+
+        this.physics.add.collider(player, ground);
+        this.physics.add.collider(player, platforms);
 
         // GameState/UI Listeners
         ourUI.events.on('generateNewMap', () => {
-            const newLevelData = loadNewLevel(platforms);
+            const newLevelData = loadNewLevel(self, this.socket, platforms);
             console.log(newLevelData);
             this.socket.emit('generateNewMap', newLevelData);
         });
@@ -252,13 +274,6 @@ var GameScene = new Phaser.Class({
 
         cursors = this.input.keyboard.createCursorKeys();
         keyC = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.C);
-
-        // Add animation and own player
-        addPlayer(self);
-        createPlayerAnims(self);
-
-        this.physics.add.collider(player, ground);
-        this.physics.add.collider(player, platforms);
         // this.physics.add.overlap(player, stars, (player, star) => {
         //     setTimeout(() => { // Account for animation delay
         //         let xDiff = Math.abs(player.body.x - star.body.x);
@@ -308,11 +323,15 @@ var GameScene = new Phaser.Class({
         })
 
         this.socket.on('newMapReceived', (mapInfo) => {
-            loadNewLevel(platforms, mapInfo)
+            loadNewLevel(self, this.socket, platforms, mapInfo)
         });
 
         this.socket.on('receiveGameStart', () => {
             this.events.emit('receiveGameStart');
+        })
+
+        this.socket.on('updateFinished', (username) => {
+            this.events.emit('finishedPlayersUpdate', username);
         })
 
         this.socket.on('disconnect', (playerId) => {
@@ -693,45 +712,39 @@ var UIScene = new Phaser.Class({
         var speedText = this.add.text(GAME_WIDTH - 15, 105, `Speed: ${WALK_SPEED}`, { fontSize: '24px', fill: '#000' }).setOrigin(1, 0.5);
         var jumpText = this.add.text(GAME_WIDTH - 15, 135, `Jump: ${JUMP_POWER}`, { fontSize: '24px', fill: '#000' }).setOrigin(1, 0.5);
         var doubleJumpText = this.add.text(GAME_WIDTH - 15, 165, `Double Jump: ${DOUBLE_JUMP_ENABLED ? 'ON' : 'OFF'}`, { fontSize: '24px', fill: '#000' }).setOrigin(1, 0.5);
-        var jumpLossText = this.add.text(GAME_WIDTH - 15, 195, `Jump Loss: ${JUMP_SPEED_LOSS * 100}%`, { fontSize: '24px', fill: '#000' }).setOrigin(1, 0.5);
-        var buttons = this.rexUI.add.buttons({
-            x: 160, y: 200,
+
+        var finishedPlayersText = this.add.text(GAME_WIDTH - 15, 225, `Rankings:`, { fontSize: '24px', fill: '#000' }).setOrigin(1, 0.5);
+
+        var statUpgradesTitle = this.add.text(30, 150, 'STAT UPGRADES', { fontSize: '24px', fill: '#000' }).setOrigin(0, 0);
+        var gameStateButtons = this.rexUI.add.buttons({
+            x: 120, y: 80,
             orientation: 'y',
             anchor: 'top',
             buttons: [
-                createButton(this, 'Generate new map'),
-                createButton(this, '+5 Energy'),
+                // createButton(this, '+5 Energy'),
                 createButton(this, 'Start game'),
-                createButton(this, `Level Up SPEED (2 energy)`),
-                createButton(this, 'Level Up JUMP!! (2 energy)'),
-                createButton(this, 'Gain DOUBLEJUMP (10 energy)'),
-                createButton(this, '-10 Speed Loss on Jump'),
-                createButton(this, '+10 Speed Loss on Jump'),
+                createButton(this, 'Generate new map'),
             ],
             space: { item: 10 },
             expand: false,
         }).layout();
-        //.drawBounds(this.add.graphics(), 0xff0000)
-        // console.log(buttons.buttons[0])
-        // buttons.buttons[0].name = 'SUP DUDE'
 
-        buttons.on('button.click', (button, index, pointer, event) => {
+        let upgradeButtons = this.rexUI.add.buttons({
+            x: 180, y: 260,
+            orientation: 'y',
+            anchor: 'top',
+            buttons: [
+                createButton(this, `Level Up SPEED (2 energy)`),
+                createButton(this, 'Level Up JUMP!! (2 energy)'),
+                createButton(this, 'Gain DOUBLEJUMP (10 energy)'),
+            ],
+            space: { item: 10 },
+            expand: false,
+        }).layout();
+
+        upgradeButtons.on('button.click', (button, index, pointer, event) => {
             switch (index) {
                 case 0: {
-                    this.events.emit('generateNewMap');
-                    break;
-                }
-                case 1: {
-                    PLAYER_ENERGY += 5;
-                    energyText.setText(`Energy: ${PLAYER_ENERGY}`);
-                    break;
-                }
-                case 2: {
-                    this.events.emit('startGame');
-                    createGameStartCountdown(this);
-                    break;
-                }
-                case 3: {
                     // if (PLAYER_ENERGY >= 2) {
                     PLAYER_ENERGY -= 2;
                     WALK_SPEED += 25;
@@ -740,7 +753,7 @@ var UIScene = new Phaser.Class({
                     // }
                     break;
                 }
-                case 4: {
+                case 1: {
                     // if (PLAYER_ENERGY >= 2) {
                     PLAYER_ENERGY -= 2;
                     JUMP_POWER += 100;
@@ -749,24 +762,40 @@ var UIScene = new Phaser.Class({
                     // }
                     break;
                 }
-                case 5: {
+                case 2: {
                     if (PLAYER_ENERGY >= 10) {
                         DOUBLE_JUMP_ENABLED = true;
                         doubleJumpText.setText(`Double Jump: ${DOUBLE_JUMP_ENABLED ? 'ON' : 'OFF'}`);
                     }
                     break;
                 }
-                case 6: {
-                    JUMP_SPEED_LOSS -= 0.1;
-                    jumpLossText.setText(`Jump Loss: ${JUMP_SPEED_LOSS * 100}%`);
-                    break;
-                }
-                case 7: {
-                    JUMP_SPEED_LOSS += 0.1;
-                    jumpLossText.setText(`Jump Loss: ${JUMP_SPEED_LOSS * 100}%`);
-                    break;
-                }
                 default: console.log('something went wrong')
+            }
+        });
+
+        upgradeButtons.visible = false;
+        statUpgradesTitle.visible = false;
+
+        //.drawBounds(this.add.graphics(), 0xff0000)
+
+        gameStateButtons.on('button.click', (button, index, pointer, event) => {
+            switch (index) {
+                // case 1: {
+                //     PLAYER_ENERGY += 5;
+                //     energyText.setText(`Energy: ${PLAYER_ENERGY}`);
+                //     break;
+                // }
+                case 0: {
+                    this.events.emit('startGame');
+                    finishedPlayersText.setText('Rankings:');
+                    createGameStartCountdown(this);
+                    break;
+                }
+                case 1: {
+                    this.events.emit('generateNewMap');
+                    break;
+                }
+                default: console.log('something went wrong');
             }
         })
 
@@ -791,7 +820,21 @@ var UIScene = new Phaser.Class({
         });
 
         ourGame.events.on('receiveGameStart', () => {
+            finishedPlayersText.setText('Rankings:');
             createGameStartCountdown(this);
+        });
+
+        // ourGame.events.on('clearFinishedPlayers', () => {
+        //     finishedPlayersText.setText('Rankings:');
+        // })
+
+        ourGame.events.on('showStatUpgrades', (isVisible) => {
+            statUpgradesTitle.visible = isVisible;
+            upgradeButtons.visible = isVisible;
+        })
+
+        ourGame.events.on('finishedPlayersUpdate', (username) => {
+            finishedPlayersText.setText(finishedPlayersText.text + `\n${username}`);
         });
     }
 });

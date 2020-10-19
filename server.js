@@ -62,6 +62,7 @@ io.on('connection', (socket) => {
     socket.on('disconnect', function () {
         console.log('user disconnected');
         delete players[socket.id]; // remove this player from our players object
+        playersFinished = playersFinished.filter(id => id !== socket.id)
         io.emit('disconnect', socket.id); // emit a message to all players to remove this player
     });
 
@@ -90,6 +91,11 @@ io.on('connection', (socket) => {
 
     // Game State
     socket.on('startGame', () => {
+        // Clear finished players
+        while (playersFinished.length > 0) {
+            playersFinished.pop();
+        }
+
         // Reset all players
         for (let sId in players) {
             players[sId].x = STARTING_X;
@@ -102,7 +108,13 @@ io.on('connection', (socket) => {
 
     socket.on('playerFinish', (playerId) => {
         playersFinished.push(playerId);
-        io.emit('updateFinished', playersFinished);
+        console.log(playersFinished);
+        socket.broadcast.emit('updateFinished', players[playerId].username);
+        console.log( Object.keys(players).length);
+        if (playersFinished.length == Object.keys(players).length) {
+            console.log('GAME ENDED!')
+            io.sockets.emit('receiveGameEnd');
+        }
     })
 });
 
