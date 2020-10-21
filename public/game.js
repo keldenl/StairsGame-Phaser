@@ -146,7 +146,7 @@ const loadNewLevel = (self, socket, platforms, loadSavedLevel = '') => {
         loadArray = loadSavedLevel.split('k');
     }
 
-    for (var i = 0; i < 3; i++) { // 40
+    for (var i = 0; i < 40; i++) { // 40
         if (loadArray.length > 0) {
             const currLoad = loadArray[i].split(',');
             newX = currLoad[0];
@@ -166,7 +166,7 @@ const loadNewLevel = (self, socket, platforms, loadSavedLevel = '') => {
         saveLevel += `${newX},${newScale}k`
         lastX = newX;
 
-        if (i !== 2) {
+        if (i !== 39) {
             platforms.create(newX, startingHeight - (i * BLOCK_HEIGHT) + (BLOCK_HEIGHT / 2), 'platform').setScale(newScale, 1).refreshBody(); // 65 distance
         } else {
             const lastPlat = platforms.create(newX, startingHeight - (i * BLOCK_HEIGHT) + (BLOCK_HEIGHT / 2), 'platform').setScale(newScale, 1).refreshBody(); // 65 distance
@@ -181,6 +181,7 @@ const loadNewLevel = (self, socket, platforms, loadSavedLevel = '') => {
                 self.events.emit('finishedPlayersUpdate', nameTags['self'].text);
                 self.events.emit('showStatUpgrades', true);
             }, () => {
+                // fix X, wrong
                 return !gamePaused && lastPlat.body.y - player.body.y > 32 && Math.abs(lastPlat.body.x - player.body.x) > 10;
             }, this);
         }
@@ -292,7 +293,7 @@ var GameScene = new Phaser.Class({
         this.cameras.main.setViewport(0, 0, GAME_WIDTH, GAME_HEIGHT / 4);
         this.cameras.main.setZoom(2);
         this.cameras.main.setBackgroundColor('#fff');
-        this.cameras.main.startFollow(player);
+        this.cameras.main.startFollow(player, true, 0.1, 0.1, 0, 25);
 
         // Multiplayer init/loop
         this.otherPlayers = this.physics.add.group();
