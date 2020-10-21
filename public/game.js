@@ -146,7 +146,7 @@ const loadNewLevel = (self, socket, platforms, loadSavedLevel = '') => {
         loadArray = loadSavedLevel.split('k');
     }
 
-    for (var i = 0; i < 40; i++) { // 40
+    for (var i = 0; i < 3; i++) { // 40
         if (loadArray.length > 0) {
             const currLoad = loadArray[i].split(',');
             newX = currLoad[0];
@@ -166,11 +166,12 @@ const loadNewLevel = (self, socket, platforms, loadSavedLevel = '') => {
         saveLevel += `${newX},${newScale}k`
         lastX = newX;
 
-        if (i !== 39) {
+        if (i !== 2) {
             platforms.create(newX, startingHeight - (i * BLOCK_HEIGHT) + (BLOCK_HEIGHT / 2), 'platform').setScale(newScale, 1).refreshBody(); // 65 distance
         } else {
             const lastPlat = platforms.create(newX, startingHeight - (i * BLOCK_HEIGHT) + (BLOCK_HEIGHT / 2), 'platform').setScale(newScale, 1).refreshBody(); // 65 distance
             lastPlat.tint = 0x000000;
+            console.log(lastPlat);
             self.physics.add.overlap(player, lastPlat, () => {
                 console.log('you win!');
                 player.body.velocity.x = 0;
@@ -182,7 +183,7 @@ const loadNewLevel = (self, socket, platforms, loadSavedLevel = '') => {
                 self.events.emit('showStatUpgrades', true);
             }, () => {
                 // fix X, wrong
-                return !gamePaused && lastPlat.body.y - player.body.y > 32 && Math.abs(lastPlat.body.x - player.body.x) > 10;
+                return !gamePaused && lastPlat.body.y - player.body.y > 32;
             }, this);
         }
     }
