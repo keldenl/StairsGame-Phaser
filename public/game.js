@@ -32,7 +32,9 @@ let keyC;
 
 // Game objects
 let platforms;
+let bouncePlatforms;
 let player;
+let sfx = {};
 
 // Player Constants
 let RUN_MULTIPLIER = 1.5;
@@ -43,6 +45,7 @@ const DEFAULT_JUMP_POWER = 425;
 const DEFAULT_DOUBLE_JUMP_POWER = 375;
 
 let WALK_SPEED = DEFAULT_WALK_SPEED;
+let walkDebuff = 0;
 let JUMP_POWER = DOUBLE_JUMP_ENABLED ? DEFAULT_DOUBLE_JUMP_POWER : DEFAULT_JUMP_POWER;
 let PLAYER_ENERGY = 0;
 
@@ -50,6 +53,8 @@ let PLAYER_ENERGY = 0;
 var jumping = false;
 var doubleJumping = false;
 var inAction = false;
+
+let playerSound = '';
 
 // Xbox Controller Constants
 var CONTROLLER_ENABLED = false;
@@ -60,7 +65,9 @@ let R1;
 
 // Functions
 // Set up animations
-const createPlayerAnims = self => {
+const createPlayerAnims = (self) => {
+    const { walk, jump } = sfx;
+
     self.anims.create({
         key: 'idle',
         // frames: [{ key: 'dude', frame: 4 }],
@@ -78,7 +85,13 @@ const createPlayerAnims = self => {
 
     self.anims.create({
         key: 'jump',
-        frames: self.anims.generateFrameNumbers('dude-walk', { start: 0, end: 3 }), // 7
+        frames: self.anims.generateFrameNumbers('dude-idle', { start: 0, end: 3 }), // 7
+        frameRate: 5
+    })
+
+    self.anims.create({
+        key: 'doubleJump',
+        frames: self.anims.generateFrameNumbers('dude-idle', { start: 0, end: 3 }), // 7
         frameRate: 5
     })
 
@@ -94,6 +107,27 @@ const createPlayerAnims = self => {
         frames: self.anims.generateFrameNumbers('dude-attack', { start: 0, end: 5 }),
         frameRate: 10
     })
+
+    player.on('animationstart', (currentAnim) => {
+        if (currentAnim.key === 'walk') {
+            if (playerSound !== 'walk') {
+                // console.log('play')
+                walk.play();
+                playerSound = 'walk';
+            }
+        } else if (currentAnim.key === 'jump') {
+            walk.stop();
+            jump.play();
+            playerSound = '';
+        } else {
+            // console.log('stop');
+            // console.log(playerSound)
+            walk.stop();
+            playerSound = '';
+            // console.log(playerSound)
+            // playerAudioPlaying = false;
+        }
+    });
 }
 
 // Players setup
@@ -134,6 +168,7 @@ const addOtherPlayers = (self, playerInfo) => {
 // Load map
 const loadNewLevel = (self, socket, platforms, loadSavedLevel = '') => {
     platforms.clear(true);
+    // bouncePlatforms.clear(true);
 
     let loadArray = [];
     let saveLevel = '';
@@ -146,7 +181,9 @@ const loadNewLevel = (self, socket, platforms, loadSavedLevel = '') => {
         loadArray = loadSavedLevel.split('k');
     }
 
-    for (var i = 0; i < 3; i++) { // 40
+    const numOfPlats = 40;
+
+    for (var i = 0; i < numOfPlats; i++) { // 40
         if (loadArray.length > 0) {
             const currLoad = loadArray[i].split(',');
             newX = currLoad[0];
@@ -166,8 +203,35 @@ const loadNewLevel = (self, socket, platforms, loadSavedLevel = '') => {
         saveLevel += `${newX},${newScale}k`
         lastX = newX;
 
-        if (i !== 2) {
-            platforms.create(newX, startingHeight - (i * BLOCK_HEIGHT) + (BLOCK_HEIGHT / 2), 'platform').setScale(newScale, 1).refreshBody(); // 65 distance
+        const currPlatType = Math.floor(Math.random() * 10);
+        // 0 = bouncy
+        // 1 = zoom left
+        // 2 = zoom right
+        // 3 ~ 9 = normal
+        // const platColors = []
+
+        if (i < numOfPlats - 1) {
+            // console.log(currPlatType)
+            const plat = platforms.create(newX, startingHeight - (i * BLOCK_HEIGHT) + (BLOCK_HEIGHT / 2), 'platform').setScale(newScale, 1).refreshBody(); // 65 distance
+            self.physics.add.collider(player, plat, (p, bp) => {
+                if (bp.body.y - p.body.y > 32) {
+                    switch (currPlatType) {
+                        case 0:
+                            walkDebuff = 0;
+                            p.body.velocity.y = -500;
+                            break;
+                        case 1:
+                            walkDebuff = -150;
+                            break;
+                        case 2:
+                            walkDebuff = 150;
+                            break;
+                        default:
+                            walkDebuff = 0;
+                            break;
+                    }
+                }
+            });
         } else {
             const lastPlat = platforms.create(newX, startingHeight - (i * BLOCK_HEIGHT) + (BLOCK_HEIGHT / 2), 'platform').setScale(newScale, 1).refreshBody(); // 65 distance
             lastPlat.tint = 0x000000;
@@ -204,6 +268,11 @@ var GameScene = new Phaser.Class({
         this.load.image('star', './assets/star.png');
         this.load.image('dude', './assets/player/sprite-sm.png');
 
+        this.load.audio('walk', './assets/player/audio/walk.mp3');
+        this.load.audio('jump', './assets/player/audio/jump.mp3', {
+            instances: 1
+        });
+
         // Blue Dude
         this.load.spritesheet('dude-idle', './assets/player/idle-sm.png', { frameWidth: 128, frameHeight: 142 });
         this.load.spritesheet('dude-walk', './assets/player/walk-sm.png', { frameWidth: 128, frameHeight: 142 });
@@ -218,6 +287,12 @@ var GameScene = new Phaser.Class({
         var self = this;
         this.socket = io();
 
+        // Audio Setup
+        const walk = this.sound.add('walk', { loop: true, volume: 4 });
+        const jump = this.sound.add('jump');
+        sfx = { walk: walk, jump: jump };
+
+
         // Set up Backdrop
         this.add.image(0, 0, 'sky').setOrigin(0, 0).setScale(GAME_WIDTH / 800, GAME_HEIGHT / 600);
         const ground = this.physics.add.staticSprite(GAME_WIDTH / 2, GAME_HEIGHT, 'ground').setScale(GAME_WIDTH / 400, 6).refreshBody();
@@ -225,13 +300,14 @@ var GameScene = new Phaser.Class({
 
         // Set up Platforms
         platforms = this.physics.add.staticGroup();
+        bouncePlatforms = this.physics.add.staticGroup();
 
         // Add animation and own player
         addPlayer(self);
-        createPlayerAnims(self);
+        createPlayerAnims(self, sfx);
         loadNewLevel(self, this.socket, platforms, defaultLevelLoad);
 
-        this.physics.add.collider(player, ground);
+        this.physics.add.collider(player, ground, () => walkDebuff = 0);
         this.physics.add.collider(player, platforms);
 
         // GameState/UI Listeners
@@ -294,7 +370,7 @@ var GameScene = new Phaser.Class({
         this.cameras.main.setViewport(0, 0, GAME_WIDTH, GAME_HEIGHT / 4);
         this.cameras.main.setZoom(2);
         this.cameras.main.setBackgroundColor('#fff');
-        this.cameras.main.startFollow(player, true, 0.1, 0.1, 0, 25);
+        this.cameras.main.startFollow(player, true, 0.1, 0.1);
 
         // Multiplayer init/loop
         this.otherPlayers = this.physics.add.group();
@@ -503,28 +579,28 @@ var GameScene = new Phaser.Class({
                 if (cursors.left.isDown || (lAxis && lAxis.value < -0.5)) {
                     player.flipX = false;
                     if (cursors.shift.isDown || (R1 && R1.value > 0.1)) {
-                        player.setVelocityX(WALK_SPEED * RUN_MULTIPLIER * -1);
+                        player.setVelocityX(WALK_SPEED * RUN_MULTIPLIER * -1 + walkDebuff);
                         player.anims.play('run', true);
                     } else {
-                        player.setVelocityX(WALK_SPEED * -1);
+                        player.setVelocityX(WALK_SPEED * -1 + walkDebuff);
                         player.anims.play('walk', true);
                     }
                 } else if (cursors.right.isDown || (lAxis && lAxis.value > 0.5)) {
                     player.flipX = true;
                     if (cursors.shift.isDown || (R1 && R1.value > 0.1)) {
-                        player.setVelocityX(WALK_SPEED * RUN_MULTIPLIER);
+                        player.setVelocityX(WALK_SPEED * RUN_MULTIPLIER + walkDebuff);
                         player.anims.play('run', true);
                     } else {
-                        player.setVelocityX(WALK_SPEED);
+                        player.setVelocityX(WALK_SPEED + walkDebuff);
                         player.anims.play('walk', true);
                     }
                 } else {
-                    player.setVelocityX(0);
+                    player.setVelocityX(walkDebuff !== 0 ? walkDebuff : 0);
                     if (!inAction) {
                         player.anims.play('idle', true);
                     }
                 }
-            } else if (!jumping && !doubleJumping) {
+            } else if (!jumping && !doubleJumping && player.body.velocity.y == 0) {
                 player.anims.play('idle', true);
             }
 
@@ -533,11 +609,11 @@ var GameScene = new Phaser.Class({
                 if (cursors.left.isDown || (lAxis && lAxis.value < -0.5)) {
                     player.flipX = false;
                     player.setVelocityX(WALK_SPEED * -1);
-                    player.anims.play('walk', true);
+                    player.anims.play(jumping ? 'doubleJump' : 'jump', true);
                 } else if (cursors.right.isDown || (lAxis && lAxis.value > 0.5)) {
                     player.flipX = true;
                     player.setVelocityX(WALK_SPEED);
-                    player.anims.play('walk', true);
+                    player.anims.play(jumping ? 'doubleJump' : 'jump', true);
                 }
 
                 let currVelX = player.body.velocity.x;
@@ -602,12 +678,11 @@ const createUsernameDialog = (scene, config) => {
     var userNameField = scene.rexUI.add.label({
         orientation: 'x',
         background: scene.rexUI.add.roundRectangle(0, 0, 10, 10, 10).setStrokeStyle(2, COLOR_LIGHT),
-        text: scene.rexUI.add.BBCodeText(0, 0, username, { fixedWidth: 150, fixedHeight: 36, valign: 'center' }),
+        text: scene.rexUI.add.BBCodeText(0, 0, username, { fixedWidth: 150, fixedHeight: 36 }),
         space: { top: 5, bottom: 5, left: 5, right: 5 }
     })
         .setInteractive()
         .on('pointerdown', () => {
-            console.log('clicked')
             var config = {
                 onTextChanged: function (textObject, text) {
                     username = text;
@@ -616,6 +691,8 @@ const createUsernameDialog = (scene, config) => {
             }
             scene.rexUI.edit(userNameField.getElement('text'), config);
         });
+
+    console.log(userNameField)
 
     var errorMessageText = scene.add.text(0, 0, '', { fill: '#FF0000' });
 
@@ -650,10 +727,10 @@ const createUsernameDialog = (scene, config) => {
         height: height,
     })
         .addBackground(background)
-        .add(titleField, 0, 'center', { top: 10, bottom: 10, left: 10, right: 10 }, false)
+        .add(titleField, 0, 'left', { top: 10, bottom: 10, left: 10, right: 10 }, false)
         .add(userNameField, 0, 'left', { bottom: 10, left: 10, right: 10 }, false)
         .add(errorMessageText, 0, 'left', { bottom: 10, left: 10, right: 10 }, false)
-        .add(loginButton, 0, 'center', { bottom: 10, left: 10, right: 10 }, false)
+        .add(loginButton, 0, 'left', { bottom: 10, left: 10, right: 10 }, false)
         .layout();
     return loginDialog;
 };
@@ -775,10 +852,13 @@ var UIScene = new Phaser.Class({
             }
         });
 
-        upgradeButtons.visible = false;
-        statUpgradesTitle.visible = false;
 
-        //.drawBounds(this.add.graphics(), 0xff0000)
+        const showUpgradeStore = (isShown) => {
+            upgradeButtons.visible = isShown;
+            statUpgradesTitle.visible = isShown;
+        }
+
+        showUpgradeStore(false);
 
         gameStateButtons.on('button.click', (button, index, pointer, event) => {
             switch (index) {
@@ -790,6 +870,7 @@ var UIScene = new Phaser.Class({
                 case 0: {
                     this.events.emit('startGame');
                     finishedPlayersText.setText('Rankings:');
+                    showUpgradeStore(false);
                     createGameStartCountdown(this);
                     break;
                 }
@@ -803,8 +884,8 @@ var UIScene = new Phaser.Class({
 
         const initialDO = createDarkOverlay(this, 0.75);
         const usernameDialog = createUsernameDialog(this, {
-            x: 400,
-            y: 300,
+            x: GAME_WIDTH / 2,
+            y: GAME_HEIGHT / 8,
             title: 'Choose a username',
             username: 'Player1',
         })
@@ -816,6 +897,9 @@ var UIScene = new Phaser.Class({
             })
             .popUp(500);
 
+
+        console.log(usernameDialog)
+
         // UI Listeners
         ourGame.events.on('updateLevel', () => {
             levelText.setText(`Level: ${heightLevel}`);
@@ -823,6 +907,7 @@ var UIScene = new Phaser.Class({
 
         ourGame.events.on('receiveGameStart', () => {
             finishedPlayersText.setText('Rankings:');
+            showUpgradeStore(false);
             createGameStartCountdown(this);
         });
 
@@ -831,8 +916,7 @@ var UIScene = new Phaser.Class({
         // })
 
         ourGame.events.on('showStatUpgrades', (isVisible) => {
-            statUpgradesTitle.visible = isVisible;
-            upgradeButtons.visible = isVisible;
+            showUpgradeStore(isVisible);
         })
 
         ourGame.events.on('finishedPlayersUpdate', (username) => {
